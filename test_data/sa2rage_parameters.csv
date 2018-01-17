@@ -1,0 +1,6 @@
+TR=2.4
+TRFLASH=2.2e-3
+TIs=[45e-3 1800e-3]
+NZslices=128.*[0.25 0.5]./2
+FlipDegrees=[4 11]
+averageT1=1.5

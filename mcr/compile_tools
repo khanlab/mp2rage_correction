@@ -1,0 +1,21 @@
+#!/bin/bash
+
+version=v92
+
+mcr_dir=`dirname $0`
+matlab_dir=`realpath $mcr_dir/../matlab_src`
+out_dir=$mcr_dir/$version
+mkdir -p $out_dir
+
+for m in `ls $matlab_dir/*.m`
+do
+
+filename=${m##*/}
+funcname=${filename%.m}
+
+echo "Compiling $filename ..."
+mcc -N -I $matlab_dir -v -m -d $out_dir $filename 
+echo "Removing extra files: $out_dir/*.{txt,sh,log}"
+#rm $out_dir/*.{txt,sh,log}
+
+done

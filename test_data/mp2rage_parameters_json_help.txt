@@ -1,0 +1,7 @@
+B0=MagneticFieldStrength
+TR=RepetitionTime
+TRFLASH=?
+TIs=[InversionTime, ]
+NZslices=?
+FlipDegrees=[FlipAngle, ]
+InvEFF=?

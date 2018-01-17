@@ -1,0 +1,6 @@
+TR=RepetitionTime
+TRFLASH=?
+TIs=[InversionTime, ]
+NZslices=?
+FlipDegrees=[FlipAngle, ]
+averageT1=?

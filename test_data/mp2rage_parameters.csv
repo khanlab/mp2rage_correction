@@ -1,0 +1,7 @@
+B0=7
+TR=6
+TRFLASH=7.9e-3
+TIs=[800e-3 2700e-3]
+NZslices=[56 112]
+FlipDegrees=[4 5]
+InvEFF=0.96
