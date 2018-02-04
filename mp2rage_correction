@@ -1,0 +1,271 @@
+#!/bin/bash
+
+function die {
+ echo $1 >&2
+ exit 1
+}
+
+matching_sa2rage=
+participant_label=
+matching_mp2rage=
+
+if [ "$#" -lt 3 ]
+then
+ echo "Usage: mp2rage_correction bids_dir output_dir {participant,group} <optional arguments>"
+ echo "          [--participant_label PARTICIPANT_LABEL [PARTICIPANT_LABEL...]]"
+# echo "          [--matching_sa2rage MATCHING_PATTERN"
+# echo "          [--matching_mp2rage MATCHING_STRING"
+ echo ""
+ exit 1
+fi
+
+
+in_bids=$1 
+out_folder=$2 
+analysis_level=$3
+
+
+shift 3
+
+
+
+while :; do
+      case $1 in
+     -h|-\?|--help)
+	     usage
+            exit
+              ;;
+       --participant_label )       # takes an option argument; ensure it has been specified.
+          if [ "$2" ]; then
+                participant_label=$2
+                  shift
+	      else
+              die 'error: "--participant" requires a non-empty option argument.'
+            fi
+              ;;
+     --participant_label=?*)
+          participant_label=${1#*=} # delete everything up to "=" and assign the remainder.
+            ;;
+          --participant_label=)         # handle the case of an empty --participant=
+         die 'error: "--participant_label" requires a non-empty option argument.'
+          ;;
+     --matching_sa2rage )       # takes an option argument; ensure it has been specified.
+          if [ "$2" ]; then
+                matching_sa2rage=$2
+                  shift
+	      else
+              die 'error: "--matching_sa2rage" requires a non-empty option argument.'
+            fi
+              ;;
+     --matching_sa2rage=?*)
+          matching_sa2rage=${1#*=} # delete everything up to "=" and assign the remainder.
+            ;;
+          --matching_sa2rage=)         # handle the case of an empty --acq=
+         die 'error: "--matching_sa2rage" requires a non-empty option argument.'
+          ;;
+     --matching_mp2rage )       # takes an option argument; ensure it has been specified.
+          if [ "$2" ]; then
+                matching_mp2rage=$2
+                  shift
+	      else
+              die 'error: "--matching_mp2rage" requires a non-empty option argument.'
+            fi
+              ;;
+     --matching_mp2rage=?*)
+          matching_mp2rage=${1#*=} # delete everything up to "=" and assign the remainder.
+            ;;
+          --matching_mp2rage=)         # handle the case of an empty --acq=
+         die 'error: "--matching_sa2rage" requires a non-empty option argument.'
+          ;;
+
+
+      -?*)
+            printf 'WARN: Unknown option (ignored): %s\n' "$1" >&2
+              ;;
+     *)               # Default case: No more options, so break out of the loop.
+          break
+    esac
+  
+ shift
+  done
+
+
+shift $((OPTIND-1))
+
+
+
+if [ -e $in_bids ]
+then
+	in_bids=`realpath $in_bids`
+else
+	echo "ERROR: bids_dir $in_bids does not exist!"
+	exit 1
+fi
+
+
+if [ "$analysis_level" = "participant" ]
+then
+ echo " running participant level analysis"
+ else
+  echo "only participant level analysis is enabled"
+  exit 0
+fi
+
+
+participants=$in_bids/participants.tsv
+
+work_folder=$out_folder/work
+derivatives=$out_folder #bids derivatives
+
+mkdir -p $work_folder $derivatives
+derivatives=`realpath $derivatives`
+
+pushd $work_folder
+echo $participants
+
+
+#not used
+#---------
+if [ -n "$matching_sa2rage" ]
+then
+  searchstring_dwi=\*${matching_sa2rage}\*SA2RAGE.nii*
+else
+  searchstring_dwi=*dwi.nii*
+fi
+
+if [ -n "$matching_mp2rage" ]
+then
+  searchstring_t1w=\*${matching_mp2rage}\*T1w.nii*
+else
+  searchstring_t1w=*T1w.nii*
+fi
+#----------
+
+
+if [ -n "$participant_label" ]
+then
+subjlist=`echo $participant_label | sed  's/,/\ /g'` 
+else
+subjlist=`tail -n +2 $participants | awk '{print $1}'`
+fi
+
+for subj in $subjlist 
+do
+
+#add on sub- if not exists
+if [ ! "${subj:0:4}" = "sub-" ]
+then
+  subj="sub-$subj"
+fi
+
+
+b1map=`eval ls $in_bids/$subj/fmap/${subj}_acq-b1map_SA2RAGE.nii.gz | head -n 1` 
+b1inv1=`eval ls $in_bids/$subj/fmap/${subj}_inv-1_SA2RAGE.nii.gz | head -n 1` 
+b1inv2=`eval ls $in_bids/$subj/fmap/${subj}_inv-2_SA2RAGE.nii.gz | head -n 1` 
+
+t1inv1=`eval ls $in_bids/$subj/anat/${subj}_inv-1_run-01_MP2RAGE.nii.gz | head -n 1` 
+t1inv2=`eval ls $in_bids/$subj/anat/${subj}_inv-2_run-01_MP2RAGE.nii.gz | head -n 1` 
+t1uni=`eval ls $in_bids/$subj/anat/${subj}_acq-UNI_run-01_MP2RAGE.nii.gz | head -n 1` 
+t1den=`eval ls $in_bids/$subj/anat/${subj}_acq-MP2RAGE_run-01_T1w.nii.gz | head -n 1` 
+t1map=`eval ls $in_bids/$subj/anat/${subj}_acq-MP2RAGE_run-01_T1map.nii.gz | head -n 1` 
+
+
+echo b1map: $b1map
+echo b1inv1: $b1inv1
+echo b1inv2: $b1inv2
+echo t1map: $t1map
+echo t1uni: $t1uni
+echo t1inv1: $t1inv1
+echo t1inv2: $t1inv2
+
+
+work_dir=$subj
+mkdir -p $work_dir
+
+#create config file for mp2rage
+t1_params=$work_dir/mp2rage_parameters.csv
+rm -f $t1_params
+t1inv1_json=${t1inv1%%.nii.gz}.json
+t1inv2_json=${t1inv2%%.nii.gz}.json
+echo "B0=`getValueJson.py $t1inv1_json MagneticFieldStrength`" >> $t1_params
+echo "TR=`getValueJson.py $t1inv1_json RepetitionTime`" >> $t1_params
+echo "TRFLASH=7.9e-3" >> $t1_params  #can get from PDF Protocol as Sequence: Echo Spacing
+echo "TIs=[`getValueJson.py $t1inv1_json InversionTime`,`getValueJson.py $t1inv2_json InversionTime`]" >> $t1_params
+NZ=`fslval $t1inv1 dim1`
+ResPE=`getValueJson.py $t1inv1_json PhaseEncodingLines`
+NumPEsteps=`getValueJson.py $t1inv1_json global const NumberOfPhaseEncodingSteps`
+PartialFourier=`bashcalc $NumPEsteps/$ResPE` 
+#NZslices = Slices Per Slab * [PartialFourierInSlice-0.5  0.5]
+echo "NZslices=[`bashcalc "$NZ*($PartialFourier - 0.5)"`,`bashcalc "$NZ*( 0.5)"`]" >> $t1_params
+echo "FlipDegrees=[`getValueJson.py $t1inv1_json FlipAngle`,`getValueJson.py $t1inv2_json FlipAngle`]" >> $t1_params
+echo "InvEFF=0.96" >> $t1_params   #inversion efficiency of the adiabatic pulse 
+
+
+#create config file for sa2rage
+b1_params=$work_dir/sa2rage_parameters.csv
+rm -f $b1_params
+b1inv1_json=${b1inv1%%.nii.gz}.json
+b1inv2_json=${b1inv2%%.nii.gz}.json
+echo "TR=`getValueJson.py $b1inv1_json RepetitionTime`" >> $b1_params
+echo "TRFLASH=2.2e-3" >> $b1_params  #can get from PDF Protocol as Sequence: Echo Spacing
+
+#for some reason, dicom tag for TI in Sa2RAGE in milliseconds instead of seconds, so need to divide by 1000
+TI1_ms=`getValueJson.py $b1inv1_json InversionTime` 
+TI2_ms=`getValueJson.py $b1inv2_json InversionTime`
+echo "TIs=[${TI1_ms}e-3,${TI2_ms}e-3]" >> $b1_params
+AccelPE=`getValueJson.py $b1inv1_json AccelFactPE`
+ResPE=`getValueJson.py $b1inv1_json PhaseEncodingLines`
+NumPEsteps=`getValueJson.py $b1inv1_json global const NumberOfPhaseEncodingSteps`
+PartialFourier=`bashcalc $NumPEsteps/$ResPE` 
+#  Sa2RAGE.NZslices=128.*[0.25 0.5]./2 # Base Resolution * [PartialFourierInPE-0.5  0.5]/iPATpe  
+NZ1=`bashcalc "$ResPE*($PartialFourier - 0.5)/$AccelPE"`
+NZ2=`bashcalc "$ResPE*0.5/$AccelPE"`
+echo "NZslices=[$NZ1,$NZ2]" >> $b1_params
+echo "FlipDegrees=[`getValueJson.py $b1inv1_json FlipAngle`,`getValueJson.py $b1inv2_json FlipAngle`]" >> $b1_params
+echo "averageT1=1.5"   >> $b1_params
+
+#convert to float for precision
+t1uni_f=$work_dir/${t1uni##*/}
+fslmaths $t1uni $t1uni_f -odt float 
+
+#now, register the sa2rage inv2 to the mp2rage inv2
+b1inv2_file=${b1inv2##*/}
+b1inv2_reg=$work_dir/${b1inv2_file%%.nii.gz}_space-T1w.nii.gz
+b1_to_t1=$work_dir/SA2RAGE_to_MP2RAGE_flirt.mat
+if [ ! -e $b1_to_t1 ]
+then
+echo flirt -v -nosearch -usesqform -in $b1inv2 -out $b1inv2_reg -omat $b1_to_t1 -ref $t1inv2
+flirt -v -nosearch -usesqform -in $b1inv2 -out $b1inv2_reg -omat $b1_to_t1 -ref $t1inv2
+fi
+
+#transform sa2rage b1map to t1 space
+b1map_file=${b1map##*/}
+b1map_reg=$work_dir/${b1map_file%%.nii.gz}_space-T1w.nii.gz
+if [ ! -e $b1map_reg ]
+then
+echo flirt -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1map -out $b1map_reg 
+flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1map -out $b1map_reg 
+fi
+
+t1map_file=${t1map##*/}
+t1map_corr=$work_dir/${t1map_file%%_T1map.nii.gz}_proc-SA2RAGE_T1map.nii
+t1uni_file=${t1uni##*/}
+t1uni_corr=$work_dir/${t1uni_file%%_MP2RAGE.nii.gz}_proc-SA2RAGE_MP2RAGE.nii
+
+if [ ! -e $t1map_corr ]
+then
+echo run_mp2rage_correction.sh $b1map_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr 
+run_mp2rage_correction.sh $b1map_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr 
+fi
+
+gzip $t1map_corr $t1uni_corr
+
+#copy to bids folder:
+out_deriv=$derivatives/$subj/anat
+mkdir -p $out_deriv
+cp -v ${t1map_corr}.gz ${t1uni_corr}.gz $out_deriv
+
+done
+
+
+popd

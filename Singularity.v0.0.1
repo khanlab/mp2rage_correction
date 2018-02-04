@@ -14,11 +14,11 @@ cp -Rv . $SINGULARITY_ROOTFS/src
 cd /src
 
 # checkout specific git release 
-SINGULARITY_TAG=${SINGULARITY_BUILDDEF#Singularity.}
-if [ ! "$SINGULARITY_TAG" = "Singularity" ]
-then
-  git checkout $SINGULARITY_TAG
-fi
+#SINGULARITY_TAG=${SINGULARITY_BUILDDEF#Singularity.}
+#if [ ! "$SINGULARITY_TAG" = "Singularity" ]
+#then
+#  git checkout $SINGULARITY_TAG
+#fi
 
 #MCR
 ./install_scripts/05.install_MCR.sh /opt v93 R2017b
@@ -28,4 +28,7 @@ fi
 %environment
 
 export MCRROOT=/opt/mcr/v93
-export PATH=/src/mcr/v93/mp2rage_correction:$PATH
+export PATH=/src/mcr/v93/mp2rage_correction:/src/bin:$PATH
+
+%runscript
+exec /src/mp2rage_correction $@
