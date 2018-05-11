@@ -13,6 +13,8 @@ if [ "$#" -lt 3 ]
 then
  echo "Usage: mp2rage_correction bids_dir output_dir {participant,group} <optional arguments>"
  echo "          [--participant_label PARTICIPANT_LABEL [PARTICIPANT_LABEL...]]"
+ echo "          [--mp2rage_echo_spacing T_SEC (default: 7.9e-3) Found in ProtocolPDF -> MP2RAGE -> Sequence -> Echo Spacing ]"
+ echo "          [--sa2rage_echo_spacing T_SEC (default: 2.2e-3) Found in ProtocolPDF -> Sa2RAGE -> Sequence -> Echo Spacing ]"
 # echo "          [--matching_sa2rage MATCHING_PATTERN"
 # echo "          [--matching_mp2rage MATCHING_STRING"
  echo ""
@@ -120,11 +122,24 @@ derivatives=$out_folder #bids derivatives
 mkdir -p $work_folder $derivatives
 derivatives=`realpath $derivatives`
 
+#just in case participants.tsv does not exist:
+if [ ! -e $participants ]
+then
+    #participants tsv not required by bids, so if it doesn't exist, create one for temporary use
+    participants=$work_folder/participants.tsv
+    echo participant_id > $participants
+    participants=`realpath $participants`
+    pushd $in_bids
+    ls -d sub-* >> $participants
+    popd 
+fi
+
+
 pushd $work_folder
 echo $participants
 
 
-#not used
+#not used 
 #---------
 if [ -n "$matching_sa2rage" ]
 then
@@ -157,17 +172,29 @@ if [ ! "${subj:0:4}" = "sub-" ]
 then
   subj="sub-$subj"
 fi
+    #loop over sub- and sub-/ses-
+    for subjfolder in `ls -d $in_bids/$subj/anat $in_bids/$subj/ses-*/anat`
+    do
+
+        subj_sess_dir=${subjfolder%/anat}
+        subj_sess_dir=${subj_sess_dir##$in_bids/}
+        sess=${subj_sess_dir##*/}
+        subj_sess_prefix=${subj}_${sess}
+        echo subjfolder $subjfolder
+        echo subj_sess_dir $subj_sess_dir
+        echo sess $sess
+        echo subj_sess_prefix $subj_sess_prefix
 
 
-b1map=`eval ls $in_bids/$subj/fmap/${subj}_acq-b1map_SA2RAGE.nii.gz | head -n 1` 
-b1inv1=`eval ls $in_bids/$subj/fmap/${subj}_inv-1_SA2RAGE.nii.gz | head -n 1` 
-b1inv2=`eval ls $in_bids/$subj/fmap/${subj}_inv-2_SA2RAGE.nii.gz | head -n 1` 
+b1map=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-b1map_SA2RAGE.nii.gz | head -n 1` 
+b1inv1=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_SA2RAGE.nii.gz | head -n 1` 
+b1inv2=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_SA2RAGE.nii.gz | head -n 1` 
 
-t1inv1=`eval ls $in_bids/$subj/anat/${subj}_inv-1_run-01_MP2RAGE.nii.gz | head -n 1` 
-t1inv2=`eval ls $in_bids/$subj/anat/${subj}_inv-2_run-01_MP2RAGE.nii.gz | head -n 1` 
-t1uni=`eval ls $in_bids/$subj/anat/${subj}_acq-UNI_run-01_MP2RAGE.nii.gz | head -n 1` 
-t1den=`eval ls $in_bids/$subj/anat/${subj}_acq-MP2RAGE_run-01_T1w.nii.gz | head -n 1` 
-t1map=`eval ls $in_bids/$subj/anat/${subj}_acq-MP2RAGE_run-01_T1map.nii.gz | head -n 1` 
+t1inv1=`eval ls $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}_inv-1_run-01_MP2RAGE.nii.gz | head -n 1` 
+t1inv2=`eval ls $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}_inv-2_run-01_MP2RAGE.nii.gz | head -n 1` 
+t1uni=`eval ls $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}_acq-UNI_run-01_MP2RAGE.nii.gz | head -n 1` 
+t1den=`eval ls $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}_acq-MP2RAGE_run-01_T1w.nii.gz | head -n 1` 
+t1map=`eval ls $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}_acq-MP2RAGE_run-01_T1map.nii.gz | head -n 1` 
 
 
 echo b1map: $b1map
@@ -179,7 +206,7 @@ echo t1inv1: $t1inv1
 echo t1inv2: $t1inv2
 
 
-work_dir=$subj
+work_dir=$subj_sess_prefix
 mkdir -p $work_dir
 
 #create config file for mp2rage
@@ -261,7 +288,7 @@ fi
 gzip $t1map_corr $t1uni_corr
 
 #copy to bids folder:
-out_deriv=$derivatives/$subj/anat
+out_deriv=$derivatives/$subj_sess_dir/anat
 mkdir -p $out_deriv
 cp -v ${t1map_corr}.gz ${t1uni_corr}.gz $out_deriv
 
