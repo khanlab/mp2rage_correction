@@ -175,15 +175,20 @@ fi
     #loop over sub- and sub-/ses-
     for subjfolder in `ls -d $in_bids/$subj/anat $in_bids/$subj/ses-*/anat`
     do
-
-        subj_sess_dir=${subjfolder%/anat}
+        subj_sess_dir=${subjfolder%/dwi}
         subj_sess_dir=${subj_sess_dir##$in_bids/}
-        sess=${subj_sess_dir##*/}
-        subj_sess_prefix=${subj}_${sess}
+        if echo $subj_sess_dir | grep -q '/'
+        then
+            sess=${subj_sess_dir##*/}
+            subj_sess_prefix=${subj}_${sess}
+        else
+            subj_sess_prefix=${subj}
+        fi
         echo subjfolder $subjfolder
         echo subj_sess_dir $subj_sess_dir
         echo sess $sess
         echo subj_sess_prefix $subj_sess_prefix
+
 
 
 b1map=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-b1map_SA2RAGE.nii.gz | head -n 1` 
