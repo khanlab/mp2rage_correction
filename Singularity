@@ -26,3 +26,4 @@ export PATH=/opt/mp2rage_correction/mcr/v93/mp2rage_correction:/opt/mp2rage_corr
 
 %runscript
 exec /opt/mp2rage_correction/mp2rage_correction $@
+
