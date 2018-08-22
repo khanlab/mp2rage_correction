@@ -175,7 +175,7 @@ fi
     #loop over sub- and sub-/ses-
     for subjfolder in `ls -d $in_bids/$subj/anat $in_bids/$subj/ses-*/anat`
     do
-        subj_sess_dir=${subjfolder%/dwi}
+        subj_sess_dir=${subjfolder%/anat}
         subj_sess_dir=${subj_sess_dir##$in_bids/}
         if echo $subj_sess_dir | grep -q '/'
         then
