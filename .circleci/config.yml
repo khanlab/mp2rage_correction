@@ -1,0 +1,49 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: docker:17.05.0-ce-git
+    environment:
+      VERSION: v1.4
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install dependencies 
+          command: |
+            apk add --update make wget
+      - run:
+          name: Building Docker container
+          no_output_timeout: 1h
+          command: |
+              export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$VERSION.$CIRCLE_BUILD_NUM
+              docker build -t $DOCKER_NAME .
+      - run:
+          name: Running Tests
+          command: |
+              export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$VERSION.$CIRCLE_BUILD_NUM
+      - run:
+          name: Pushing build to docker hub
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$VERSION.$CIRCLE_BUILD_NUM
+            export DOCKER_LATEST=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
+            docker tag $DOCKER_NAME $DOCKER_LATEST
+            docker push $DOCKER_LATEST
+            docker push $DOCKER_NAME
+      - run:
+          name: Pushing latest to singularity hub test
+          command: |
+            git config --global user.email $GH_EMAIL
+            git config --global user.name $GH_NAME
+            echo "" >> Singularity
+            git add Singularity
+            git commit -m "shub build latest [skip ci]"
+            git push -q https://${GITHUB_TOKEN}@github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs: 
+      - build:
+          context: org-global
