@@ -5,18 +5,14 @@ function die {
  exit 1
 }
 
-matching_sa2rage=
 participant_label=
-matching_mp2rage=
 
 if [ "$#" -lt 3 ]
 then
- echo "Usage: mp2rage_correction bids_dir output_dir {participant,group} <optional arguments>"
+ echo "Usage: mp2rage_correction bids_dir output_dir participant <optional arguments>"
  echo "          [--participant_label PARTICIPANT_LABEL [PARTICIPANT_LABEL...]]"
  echo "          [--mp2rage_echo_spacing T_SEC (default: 7.9e-3) Found in ProtocolPDF -> MP2RAGE -> Sequence -> Echo Spacing ]"
  echo "          [--sa2rage_echo_spacing T_SEC (default: 2.2e-3) Found in ProtocolPDF -> Sa2RAGE -> Sequence -> Echo Spacing ]"
-# echo "          [--matching_sa2rage MATCHING_PATTERN"
-# echo "          [--matching_mp2rage MATCHING_STRING"
  echo ""
  exit 1
 fi
@@ -28,6 +24,12 @@ analysis_level=$3
 
 
 shift 3
+
+#MP2RAGE Echo Spacing
+mp2rage_echo_spacing=7.9e-3
+
+#Sa2RAGE Echo Spacing
+sa2rage_echo_spacing=2.2e-3
 
 
 
@@ -51,33 +53,36 @@ while :; do
           --participant_label=)         # handle the case of an empty --participant=
          die 'error: "--participant_label" requires a non-empty option argument.'
           ;;
-     --matching_sa2rage )       # takes an option argument; ensure it has been specified.
+
+       --mp2rage_echo_spacing )       # takes an option argument; ensure it has been specified.
           if [ "$2" ]; then
-                matching_sa2rage=$2
+                mp2rage_echo_spacing=$2
                   shift
 	      else
-              die 'error: "--matching_sa2rage" requires a non-empty option argument.'
+              die 'error: "--mp2rage_echo_spacing" requires a non-empty option argument.'
             fi
               ;;
-     --matching_sa2rage=?*)
-          matching_sa2rage=${1#*=} # delete everything up to "=" and assign the remainder.
+     --mp2rage_echo_spacing=?*)
+          mp2rage_echo_spacing=${1#*=} # delete everything up to "=" and assign the remainder.
             ;;
-          --matching_sa2rage=)         # handle the case of an empty --acq=
-         die 'error: "--matching_sa2rage" requires a non-empty option argument.'
+          --mp2rage_echo_spacing=)         # handle the case of an empty --participant=
+         die 'error: "--mp2rage_echo_spacing" requires a non-empty option argument.'
           ;;
-     --matching_mp2rage )       # takes an option argument; ensure it has been specified.
+
+
+       --sa2rage_echo_spacing )       # takes an option argument; ensure it has been specified.
           if [ "$2" ]; then
-                matching_mp2rage=$2
+                sa2rage_echo_spacing=$2
                   shift
 	      else
-              die 'error: "--matching_mp2rage" requires a non-empty option argument.'
+              die 'error: "--sa2rage_echo_spacing" requires a non-empty option argument.'
             fi
               ;;
-     --matching_mp2rage=?*)
-          matching_mp2rage=${1#*=} # delete everything up to "=" and assign the remainder.
+     --sa2rage_echo_spacing=?*)
+          sa2rage_echo_spacing=${1#*=} # delete everything up to "=" and assign the remainder.
             ;;
-          --matching_mp2rage=)         # handle the case of an empty --acq=
-         die 'error: "--matching_sa2rage" requires a non-empty option argument.'
+          --sa2rage_echo_spacing=)         # handle the case of an empty --participant=
+         die 'error: "--sa2rage_echo_spacing" requires a non-empty option argument.'
           ;;
 
 
@@ -139,24 +144,6 @@ pushd $work_folder
 echo $participants
 
 
-#not used 
-#---------
-if [ -n "$matching_sa2rage" ]
-then
-  searchstring_dwi=\*${matching_sa2rage}\*SA2RAGE.nii*
-else
-  searchstring_dwi=*dwi.nii*
-fi
-
-if [ -n "$matching_mp2rage" ]
-then
-  searchstring_t1w=\*${matching_mp2rage}\*T1w.nii*
-else
-  searchstring_t1w=*T1w.nii*
-fi
-#----------
-
-
 if [ -n "$participant_label" ]
 then
 subjlist=`echo $participant_label | sed  's/,/\ /g'` 
@@ -172,7 +159,7 @@ if [ ! "${subj:0:4}" = "sub-" ]
 then
   subj="sub-$subj"
 fi
-    #loop over sub- and sub-/ses-
+    #loop over sub- and sub-/ses- anat folders
     for subjfolder in `ls -d $in_bids/$subj/anat $in_bids/$subj/ses-*/anat`
     do
         subj_sess_dir=${subjfolder%/anat}
@@ -195,23 +182,40 @@ b1map=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-b1map_SA2R
 b1inv1=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_SA2RAGE.nii.gz | head -n 1` 
 b1inv2=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_SA2RAGE.nii.gz | head -n 1` 
 
-t1inv1=`eval ls $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}_inv-1_run-01_MP2RAGE.nii.gz | head -n 1` 
-t1inv2=`eval ls $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}_inv-2_run-01_MP2RAGE.nii.gz | head -n 1` 
-t1uni=`eval ls $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}_acq-UNI_run-01_MP2RAGE.nii.gz | head -n 1` 
-t1den=`eval ls $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}_acq-MP2RAGE_run-01_T1w.nii.gz | head -n 1` 
-t1map=`eval ls $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}_acq-MP2RAGE_run-01_T1map.nii.gz | head -n 1` 
+# iterate over runs and echos, by finding *MP2RAGE*T1map images
+
+for t1map in $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}*acq-MP2RAGE*T1map.nii* 
+do
+
+ beforeacq=${t1map%%_acq-MP2RAGE*}
+ beforeacq=${beforeacq##*/}
+ afteracq=${t1map##*acq-MP2RAGE_}
+ afteracq=${afteracq%%_T1map.*}
 
 
-echo b1map: $b1map
-echo b1inv1: $b1inv1
-echo b1inv2: $b1inv2
-echo t1map: $t1map
-echo t1uni: $t1uni
-echo t1inv1: $t1inv1
-echo t1inv2: $t1inv2
+ t1inv1=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}*inv-1*${afteracq}*MP2RAGE.nii*" | head -n 1`
+ if [ ! -n "$t1inv1" ]; then echo "t1inv1 missing, skipping correction for $t1map"; continue; fi
+ t1inv2=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}*inv-2*${afteracq}*MP2RAGE.nii*" | head -n 1`
+ if [ ! -n "$t1inv2" ]; then echo "t1inv2 missing, skipping correction for $t1map"; continue; fi
+ t1uni=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}*acq-UNI*${afteracq}*MP2RAGE.nii*" | head -n 1`
+ if [ ! -n "$t1uni" ]; then echo "t1uni missing, skipping correction for $t1map"; continue; fi
+ t1den=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}*acq-MP2RAGE*${afteracq}*T1w.nii*" | head -n 1`
+ if [ ! -n "$t1den" ]; then echo "t1den missing, skipping correction for $t1map"; continue; fi
 
+ echo b1map: $b1map
+ echo b1inv1: $b1inv1
+ echo b1inv2: $b1inv2
+ echo t1map: $t1map
+ echo t1uni: $t1uni
+ echo t1inv1: $t1inv1
+ echo t1inv2: $t1inv2
 
-work_dir=$subj_sess_prefix
+ echo beforeacq filename tags: $beforeacq
+ echo afteracq filename tags: $afteracq
+
+ work_dir=${beforeacq}_$afteracq
+ echo work_dir: $work_dir
+
 mkdir -p $work_dir
 
 #create config file for mp2rage
@@ -221,7 +225,7 @@ t1inv1_json=${t1inv1%%.nii.gz}.json
 t1inv2_json=${t1inv2%%.nii.gz}.json
 echo "B0=`getValueJson.py $t1inv1_json MagneticFieldStrength`" >> $t1_params
 echo "TR=`getValueJson.py $t1inv1_json RepetitionTime`" >> $t1_params
-echo "TRFLASH=7.9e-3" >> $t1_params  #can get from PDF Protocol as Sequence: Echo Spacing
+echo "TRFLASH=$mp2rage_echo_spacing" >> $t1_params  #can get from PDF Protocol as Sequence: Echo Spacing
 echo "TIs=[`getValueJson.py $t1inv1_json InversionTime`,`getValueJson.py $t1inv2_json InversionTime`]" >> $t1_params
 NZ=`fslval $t1inv1 dim1`
 ResPE=`getValueJson.py $t1inv1_json PhaseEncodingLines`
@@ -232,14 +236,13 @@ echo "NZslices=[`bashcalc "$NZ*($PartialFourier - 0.5)"`,`bashcalc "$NZ*( 0.5)"`
 echo "FlipDegrees=[`getValueJson.py $t1inv1_json FlipAngle`,`getValueJson.py $t1inv2_json FlipAngle`]" >> $t1_params
 echo "InvEFF=0.96" >> $t1_params   #inversion efficiency of the adiabatic pulse 
 
-
 #create config file for sa2rage
 b1_params=$work_dir/sa2rage_parameters.csv
 rm -f $b1_params
 b1inv1_json=${b1inv1%%.nii.gz}.json
 b1inv2_json=${b1inv2%%.nii.gz}.json
 echo "TR=`getValueJson.py $b1inv1_json RepetitionTime`" >> $b1_params
-echo "TRFLASH=2.2e-3" >> $b1_params  #can get from PDF Protocol as Sequence: Echo Spacing
+echo "TRFLASH=$sa2rage_echo_spacing" >> $b1_params  #can get from PDF Protocol as Sequence: Echo Spacing
 
 #for some reason, dicom tag for TI in Sa2RAGE in milliseconds instead of seconds, so need to divide by 1000
 TI1_ms=`getValueJson.py $b1inv1_json InversionTime` 
@@ -297,8 +300,10 @@ out_deriv=$derivatives/$subj_sess_dir/anat
 mkdir -p $out_deriv
 cp -v ${t1map_corr}.gz ${t1uni_corr}.gz $out_deriv
 
-done
+done # loop through t1map inputs
 
-done
+done  #subjfolder
+
+done  #subj
 
 popd
