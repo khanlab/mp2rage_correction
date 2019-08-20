@@ -85,6 +85,34 @@ while :; do
          die 'error: "--sa2rage_echo_spacing" requires a non-empty option argument.'
           ;;
 
+       --mp2rage_param_csv )       # takes an option argument; ensure it has been specified.
+          if [ "$2" ]; then
+                mp2rage_param_csv=$2
+                  shift
+	      else
+              continue
+            fi
+              ;;
+     --mp2rage_param_csv=?*)
+          mp2rage_param_csv=${1#*=} # delete everything up to "=" and assign the remainder.
+            ;;
+          --mp2rage_param_csv=)         # handle the case of an empty --mp2rage_param_csv=
+         die 'error: "--mp2rage_param_csv" requires a non-empty option argument.'
+          ;;    
+     --sa2rage_param_csv )       # takes an option argument; ensure it has been specified.
+          if [ "$2" ]; then
+                sa2rage_param_csv=$2
+                  shift
+	      else
+              continue
+            fi
+              ;;
+     --sa2rage_param_csv=?*)
+          sa2rage_param_csv=${1#*=} # delete everything up to "=" and assign the remainder.
+            ;;
+          --sa2rage_param_csv=)         # handle the case of an empty --mp2rage_param_csv=
+         die 'error: "--sa2rage_param_csv" requires a non-empty option argument.'
+          ;;  
 
       -?*)
             printf 'WARN: Unknown option (ignored): %s\n' "$1" >&2
@@ -219,45 +247,61 @@ do
 mkdir -p $work_dir
 
 #create config file for mp2rage
-t1_params=$work_dir/mp2rage_parameters.csv
-rm -f $t1_params
-t1inv1_json=${t1inv1%%.nii.gz}.json
-t1inv2_json=${t1inv2%%.nii.gz}.json
-echo "B0=`getValueJson.py $t1inv1_json MagneticFieldStrength`" >> $t1_params
-echo "TR=`getValueJson.py $t1inv1_json RepetitionTime`" >> $t1_params
-echo "TRFLASH=$mp2rage_echo_spacing" >> $t1_params  #can get from PDF Protocol as Sequence: Echo Spacing
-echo "TIs=[`getValueJson.py $t1inv1_json InversionTime`,`getValueJson.py $t1inv2_json InversionTime`]" >> $t1_params
-NZ=`fslval $t1inv1 dim1`
-ResPE=`getValueJson.py $t1inv1_json PhaseEncodingLines`
-NumPEsteps=`getValueJson.py $t1inv1_json global const NumberOfPhaseEncodingSteps`
-PartialFourier=`bashcalc $NumPEsteps/$ResPE` 
-#NZslices = Slices Per Slab * [PartialFourierInSlice-0.5  0.5]
-echo "NZslices=[`bashcalc "$NZ*($PartialFourier - 0.5)"`,`bashcalc "$NZ*( 0.5)"`]" >> $t1_params
-echo "FlipDegrees=[`getValueJson.py $t1inv1_json FlipAngle`,`getValueJson.py $t1inv2_json FlipAngle`]" >> $t1_params
-echo "InvEFF=0.96" >> $t1_params   #inversion efficiency of the adiabatic pulse 
+if [ -e $mp2rage_param_csv ]; then
+  echo "mp2rage_parameters read: $mp2rage_params_csv"
+  t1_params=$work_dir/`basename $mp2rage_param_csv`
+  cp $mp2rage_param_csv $t1_params
+else
+  t1_params=$work_dir/mp2rage_parameters.csv
+  rm -f $t1_params
+  t1inv1_json=${t1inv1%%.nii.gz}.json
+  t1inv2_json=${t1inv2%%.nii.gz}.json
+  echo "B0=`getValueJson.py $t1inv1_json MagneticFieldStrength`" >> $t1_params
+  echo "TR=`getValueJson.py $t1inv1_json RepetitionTime`" >> $t1_params
+  echo "TRFLASH=$mp2rage_echo_spacing" >> $t1_params  #can get from PDF Protocol as Sequence: Echo Spacing
+  echo "TIs=[`getValueJson.py $t1inv1_json InversionTime`,`getValueJson.py $t1inv2_json InversionTime`]" >> $t1_params
+  NZ=`fslval $t1inv1 dim1`
+  ResPE=`getValueJson.py $t1inv1_json PhaseEncodingLines`
+  NumPEsteps=`getValueJson.py $t1inv1_json global const NumberOfPhaseEncodingSteps`
+  PartialFourier=`bashcalc $NumPEsteps/$ResPE` 
+  #NZslices = Slices Per Slab * [PartialFourierInSlice-0.5  0.5]
+  echo "NZslices=[`bashcalc "$NZ*($PartialFourier - 0.5)"`,`bashcalc "$NZ*( 0.5)"`]" >> $t1_params
+  echo "FlipDegrees=[`getValueJson.py $t1inv1_json FlipAngle`,`getValueJson.py $t1inv2_json FlipAngle`]" >> $t1_params
+  echo "InvEFF=0.96" >> $t1_params   #inversion efficiency of the adiabatic pulse 
+fi
 
 #create config file for sa2rage
-b1_params=$work_dir/sa2rage_parameters.csv
-rm -f $b1_params
-b1inv1_json=${b1inv1%%.nii.gz}.json
-b1inv2_json=${b1inv2%%.nii.gz}.json
-echo "TR=`getValueJson.py $b1inv1_json RepetitionTime`" >> $b1_params
-echo "TRFLASH=$sa2rage_echo_spacing" >> $b1_params  #can get from PDF Protocol as Sequence: Echo Spacing
+if [ -e $sa2rage_param_csv ]; then
+  echo "sa2rage parameters read: $sa2rage_params_csv"
+  b1_params=$work_dir/`basename $sa2rage_param_csv`
+  cp $sa2rage_param_csv $b1_params
+else
+  b1_params=$work_dir/sa2rage_parameters.csv
+  rm -f $b1_params
+  
+  b1inv1_json=${b1inv1%%.nii.gz}.json
+  b1inv2_json=${b1inv2%%.nii.gz}.json
+  
+  b1inv1_json=${b1inv1%%.nii.gz}.json
+  b1inv2_json=${b1inv2%%.nii.gz}.json
+  echo "TR=`getValueJson.py $b1inv1_json RepetitionTime`" >> $b1_params
+  echo "TRFLASH=$sa2rage_echo_spacing" >> $b1_params  #can get from PDF Protocol as Sequence: Echo Spacing
 
-#for some reason, dicom tag for TI in Sa2RAGE in milliseconds instead of seconds, so need to divide by 1000
-TI1_ms=`getValueJson.py $b1inv1_json InversionTime` 
-TI2_ms=`getValueJson.py $b1inv2_json InversionTime`
-echo "TIs=[${TI1_ms}e-3,${TI2_ms}e-3]" >> $b1_params
-AccelPE=`getValueJson.py $b1inv1_json AccelFactPE`
-ResPE=`getValueJson.py $b1inv1_json PhaseEncodingLines`
-NumPEsteps=`getValueJson.py $b1inv1_json global const NumberOfPhaseEncodingSteps`
-PartialFourier=`bashcalc $NumPEsteps/$ResPE` 
-#  Sa2RAGE.NZslices=128.*[0.25 0.5]./2 # Base Resolution * [PartialFourierInPE-0.5  0.5]/iPATpe  
-NZ1=`bashcalc "$ResPE*($PartialFourier - 0.5)/$AccelPE"`
-NZ2=`bashcalc "$ResPE*0.5/$AccelPE"`
-echo "NZslices=[$NZ1,$NZ2]" >> $b1_params
-echo "FlipDegrees=[`getValueJson.py $b1inv1_json FlipAngle`,`getValueJson.py $b1inv2_json FlipAngle`]" >> $b1_params
-echo "averageT1=1.5"   >> $b1_params
+  #for some reason, dicom tag for TI in Sa2RAGE in milliseconds instead of seconds, so need to divide by 1000
+  TI1_ms=`getValueJson.py $b1inv1_json InversionTime` 
+  TI2_ms=`getValueJson.py $b1inv2_json InversionTime`
+  echo "TIs=[${TI1_ms}e-3,${TI2_ms}e-3]" >> $b1_params
+  AccelPE=`getValueJson.py $b1inv1_json AccelFactPE`
+  ResPE=`getValueJson.py $b1inv1_json PhaseEncodingLines`
+  NumPEsteps=`getValueJson.py $b1inv1_json global const NumberOfPhaseEncodingSteps`
+  PartialFourier=`bashcalc $NumPEsteps/$ResPE` 
+  #  Sa2RAGE.NZslices=128.*[0.25 0.5]./2 # Base Resolution * [PartialFourierInPE-0.5  0.5]/iPATpe  
+  NZ1=`bashcalc "$ResPE*($PartialFourier - 0.5)/$AccelPE"`
+  NZ2=`bashcalc "$ResPE*0.5/$AccelPE"`
+  echo "NZslices=[$NZ1,$NZ2]" >> $b1_params
+  echo "FlipDegrees=[`getValueJson.py $b1inv1_json FlipAngle`,`getValueJson.py $b1inv2_json FlipAngle`]" >> $b1_params
+  echo "averageT1=1.5"   >> $b1_params
+fi
 
 #convert to float for precision
 t1uni_f=$work_dir/${t1uni##*/}
