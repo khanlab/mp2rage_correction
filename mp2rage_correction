@@ -13,6 +13,8 @@ then
  echo "          [--participant_label PARTICIPANT_LABEL [PARTICIPANT_LABEL...]]"
  echo "          [--mp2rage_echo_spacing T_SEC (default: 7.9e-3) Found in ProtocolPDF -> MP2RAGE -> Sequence -> Echo Spacing ]"
  echo "          [--sa2rage_echo_spacing T_SEC (default: 2.2e-3) Found in ProtocolPDF -> Sa2RAGE -> Sequence -> Echo Spacing ]"
+ echo "          [--mp2rage_param_csv FILE_PATH ]"
+ echo "          [--sa2rage_param_csv FILE_PATH ]"
  echo ""
  exit 1
 fi
@@ -207,8 +209,8 @@ fi
 
 
 b1map=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-b1map_SA2RAGE.nii.gz | head -n 1` 
-b1inv1=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_SA2RAGE.nii.gz | head -n 1` 
-b1inv2=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_SA2RAGE.nii.gz | head -n 1` 
+b1inv1=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_SA2RAGE*.nii*" | head -n 1` 
+b1inv2=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_SA2RAGE*.nii*" | head -n 1` 
 
 # iterate over runs and echos, by finding *MP2RAGE*T1map images
 
