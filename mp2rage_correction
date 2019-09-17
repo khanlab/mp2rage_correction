@@ -263,7 +263,7 @@ else
   echo "TRFLASH=$mp2rage_echo_spacing" >> $t1_params  #can get from PDF Protocol as Sequence: Echo Spacing
   echo "TIs=[`getValueJson.py $t1inv1_json InversionTime`,`getValueJson.py $t1inv2_json InversionTime`]" >> $t1_params
   NZ=`fslval $t1inv1 dim1`
-  ResPE=`getValueJson.py $t1inv1_json PhaseEncodingLines`
+  ResPE=`getValueJson.py $t1inv1_json AcquisitionMatrixPE`
   NumPEsteps=`getValueJson.py $t1inv1_json global const NumberOfPhaseEncodingSteps`
   PartialFourier=`bashcalc $NumPEsteps/$ResPE` 
   #NZslices = Slices Per Slab * [PartialFourierInSlice-0.5  0.5]
@@ -293,8 +293,8 @@ else
   TI1_ms=`getValueJson.py $b1inv1_json InversionTime` 
   TI2_ms=`getValueJson.py $b1inv2_json InversionTime`
   echo "TIs=[${TI1_ms}e-3,${TI2_ms}e-3]" >> $b1_params
-  AccelPE=`getValueJson.py $b1inv1_json AccelFactPE`
-  ResPE=`getValueJson.py $b1inv1_json PhaseEncodingLines`
+  AccelPE=`getValueJson.py $b1inv1_json ParallelReductionFactorInPlane`
+  ResPE=`getValueJson.py $b1inv1_json AcquisitionMatrixPE`
   NumPEsteps=`getValueJson.py $b1inv1_json global const NumberOfPhaseEncodingSteps`
   PartialFourier=`bashcalc $NumPEsteps/$ResPE` 
   #  Sa2RAGE.NZslices=128.*[0.25 0.5]./2 # Base Resolution * [PartialFourierInPE-0.5  0.5]/iPATpe  
