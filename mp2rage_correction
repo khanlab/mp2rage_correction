@@ -33,6 +33,8 @@ mp2rage_echo_spacing=7.9e-3
 #Sa2RAGE Echo Spacing
 sa2rage_echo_spacing=2.2e-3
 
+mp2rage_param_csv=
+sa2rage_param_csv=
 
 
 while :; do
@@ -249,7 +251,13 @@ do
 mkdir -p $work_dir
 
 #create config file for mp2rage
-if [ -e $mp2rage_param_csv ]; then
+if [ -n "${mp2rage_param_csv}" ]
+then
+  if [ ! -e $mp2rage_param_csv ]
+  then
+    echo "$mp2rage_param_csv does not exist!"
+    exit 1
+  fi
   echo "mp2rage_parameters read: $mp2rage_params_csv"
   t1_params=$work_dir/`basename $mp2rage_param_csv`
   cp $mp2rage_param_csv $t1_params
@@ -273,7 +281,12 @@ else
 fi
 
 #create config file for sa2rage
-if [ -e $sa2rage_param_csv ]; then
+if [ -n "$sa2rage_param_csv" ]; then
+ if [ ! -e $sa2rage_param_csv ]
+  then
+    echo "$sa2rage_param_csv does not exist!"
+    exit 1
+  fi
   echo "sa2rage parameters read: $sa2rage_params_csv"
   b1_params=$work_dir/`basename $sa2rage_param_csv`
   cp $sa2rage_param_csv $b1_params
