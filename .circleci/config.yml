@@ -117,7 +117,6 @@ workflows:
       - deploy_dev:
           requires:
             - build
-            - test
           filters:
             tags:
               ignore: /^v.*/
@@ -125,7 +124,6 @@ workflows:
       - deploy_release:
           requires:
             - build
-            - test
           context: org-global
           filters:
             tags:
@@ -135,7 +133,6 @@ workflows:
       - deploy_release_shub:
           requires:
             - build
-            - test
             - deploy_release
           context: org-global
           filters:
