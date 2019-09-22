@@ -1,24 +1,100 @@
-version: 2
+version: 2.1
+orbs:
+  singularity: singularity/singularity@1.0.8
 jobs:
   build:
     docker:
       - image: docker:17.05.0-ce-git
     steps:
       - checkout
-      - setup_remote_docker            
+      - setup_remote_docker
       - run:
           name: Building Docker container
           no_output_timeout: 1h
           command: |
-              export DOCKER_NAME=myapp
+              export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
               docker build -t $DOCKER_NAME .
               docker save $DOCKER_NAME -o /tmp/docker_image.tar
       - persist_to_workspace:
           root: /tmp
           paths:
             - docker_image.tar
- 
- 
+            
+  build_sif:
+    docker:
+      - image: singularityware/singularity:3.2.1-slim
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: Building singularity image from docker tar
+          no_output_timeout: 1h
+          command: |
+              singularity build /tmp/singularity_image.sif docker-archive:///tmp/workspace/docker_image.tar
+      - persist_to_workspace:
+          root: /tmp
+          paths:
+            - singularity_image.sif
+
+  test:
+    docker:
+      - image: docker:17.05.0-ce-git
+    steps:
+      - setup_remote_docker            
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: Install dependencies 
+          command: |
+            apk add --update make wget
+      - run: 
+          name: Load docker image
+          no_output_timeout: 1h
+          command: |
+            docker load -i /tmp/workspace/docker_image.tar
+      - run:
+          name: Running Tests
+          command: |
+              export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
+              # put tests here
+              echo "no tests implemented yet"
+              #docker run -it $DOCKER_NAME ls
+  test_sif:
+    docker:
+      - image: singularityware/singularity:3.2.1-slim
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: Install dependencies 
+          command: |
+            apk add --update make wget
+      - run:
+          name: Running Tests
+          command: |
+              # put tests here -- note singularity exec doesn't seem to work right now..
+              #singularity exec /tmp/workspace/singularity_image.sif ls
+              echo "no tests implemented yet"
+              
+  deploy_dev_sif:
+    docker:
+      - image: singularityware/singularity:3.2.1-slim
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - run: 
+          name: Login to sylabs cloud
+          no_output_timeout: 1h
+          command: |
+            mkdir /root/.singularity
+            echo $SYLABS_TOKEN > /root/.singularity/sylabs-token
+            singularity remote list
+      - run:
+          name: Pushing build to sylabs cloud
+          command: |
+            singularity push --allow-unsigned /tmp/workspace/singularity_image.sif library://${SYLABS_USER}/circleci/${CIRCLE_PROJECT_REPONAME}:latest
+
   deploy_dev:
     docker:
       - image: docker:17.05.0-ce-git
@@ -26,10 +102,10 @@ jobs:
       - setup_remote_docker            
       - attach_workspace:
           at: /tmp/workspace
-      - run: 
-          name: Load docker image
-          no_output_timeout: 1h
-          command: |
+      - run:
+         name: Load docker image
+         no_output_timeout: 1h
+         command: |
             docker load -i /tmp/workspace/docker_image.tar
       - run:
           name: Pushing build to docker hub
@@ -37,7 +113,7 @@ jobs:
             docker login -u $DOCKER_USER -p $DOCKER_PASS
             export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
             # tag and push here:
-            docker tag myapp $DOCKER_NAME
+            echo docker push $DOCKER_NAME
             docker push $DOCKER_NAME
 
   deploy_release:
@@ -59,54 +135,32 @@ jobs:
             export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
             export DOCKER_RELEASE=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$CIRCLE_TAG
             # tag and push here:
-            docker tag myapp $DOCKER_NAME
+            echo docker tag $DOCKER_NAME $DOCKER_RELEASE
             docker tag $DOCKER_NAME $DOCKER_RELEASE
             docker push $DOCKER_RELEASE
             docker push $DOCKER_NAME
 
-  deploy_shub:
+  deploy_release_sif:
     docker:
-      - image: docker:17.05.0-ce-git
+      - image: singularityware/singularity:3.2.1-slim
     steps:
-      - checkout
-      - setup_remote_docker            
-      - run:
-          name: Pushing latest to singularity hub 
+      - attach_workspace:
+          at: /tmp/workspace
+      - run: 
+          name: Login to sylabs cloud
+          no_output_timeout: 1h
           command: |
-            sincecommit=$(git log -1 --date=unix --pretty=format:%cd)
-            if [ ! -e Singularity ]; then sinceshub=0; else sinceshub=$(git log -1 --date=unix --pretty=format:%cd Singularity); fi
-            if [ "$sincecommit" -gt "$sinceshub" ]; then echo "Commit since last shub build, rebuilding..."; else echo "No commit since last shub build, skipping..."; exit 0; fi
-            export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
-            git config --global user.email $GH_EMAIL
-            git config --global user.name $GH_NAME
-            echo "Bootstrap: docker" > Singularity
-            echo "From: $DOCKER_NAME" >> Singularity
-            echo "%labels" >> Singularity
-            echo "CIRCLE_BUILD_URL $CIRCLE_BUILD_URL" >> Singularity
-            git add Singularity
-            git commit -m "shub build latest nightly [skip ci]"
-            git push -q https://${GITHUB_TOKEN}@github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git
+            mkdir /root/.singularity
+            echo $SYLABS_TOKEN > /root/.singularity/sylabs-token
+            singularity remote list
+      - run:
+          name: Pushing release to sylabs cloud
+          command: |
+            singularity push --allow-unsigned /tmp/workspace/singularity_image.sif library://${SYLABS_USER}/circleci/${CIRCLE_PROJECT_REPONAME}:$CIRCLE_TAG
 
-  deploy_release_shub:
-    docker:
-      - image: docker:17.05.0-ce-git
-    steps:
-      - checkout
-      - setup_remote_docker            
-      - run:
-          name: Pushing release to singularity hub 
-          command: |
-            export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$CIRCLE_TAG
-            git config --global user.email $GH_EMAIL
-            git config --global user.name $GH_NAME
-            echo "Bootstrap: docker" > Singularity.$CIRCLE_TAG
-            echo "From: $DOCKER_NAME" >> Singularity.$CIRCLE_TAG
-            git add Singularity.$CIRCLE_TAG
-            git commit -m "shub build release $CIRCLE_TAG [skip ci]"
-            git push -q https://${GITHUB_TOKEN}@github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git HEAD:master
 
 workflows:
-  version: 2
+  version: 2.0
   commit:
     jobs: 
       - build:
@@ -114,25 +168,59 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - deploy_dev:
+      - build_sif:
           requires:
             - build
+          context: org-global
+          filters:
+            tags:
+              only: /.*/
+      - test:
+          requires:
+            - build
+          context: org-global
+          filters:
+            tags:
+              only: /.*/
+      - test_sif:
+          requires:
+            - build_sif
+          context: org-global
+          filters:
+            tags:
+              only: /.*/
+      - deploy_dev_sif:
+          requires:
+            - build_sif
+            - test_sif
+          context: org-global
           filters:
             tags:
               ignore: /^v.*/
+      - deploy_dev:
+          requires:
+            - build
+            - test
           context: org-global
+          filters:
+            tags:
+              ignore: /^v.*/
+            branches:
+              only: master
       - deploy_release:
           requires:
             - build
+            - test
           context: org-global
           filters:
             tags:
               only: /^v.*/
             branches:
               ignore: /.*/
-      - deploy_release_shub:
+      - deploy_release_sif:
           requires:
             - build
+            - test
             - deploy_release
           context: org-global
           filters:
@@ -141,14 +229,4 @@ workflows:
             branches:
               ignore: /.*/
 
-  nightly:
-    triggers:
-      - schedule:
-          cron: "0 3 * * *"
-          filters:
-            branches:
-              only:
-                - master
-    jobs:
-      - deploy_shub:
-          context: org-global
+
