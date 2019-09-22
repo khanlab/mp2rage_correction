@@ -1,6 +1,4 @@
-version: 2.1
-orbs:
-  singularity: singularity/singularity@1.0.8
+version: 2.0
 jobs:
   build:
     docker:
@@ -228,5 +226,4 @@ workflows:
               only: /^v.*/
             branches:
               ignore: /.*/
-
 
