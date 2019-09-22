@@ -74,7 +74,19 @@ jobs:
               # put tests here -- note singularity exec doesn't seem to work right now..
               #singularity exec /tmp/workspace/singularity_image.sif ls
               echo "no tests implemented yet"
-              
+
+  deploy_dev_cc:
+    docker:
+      - image: docker:17.05.0-ce-git
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - run: 
+          name: Push singularity image to compute canada
+          no_output_timeout: 1h
+          command: |
+            scp /tmp/workspace/singularity_image.sif ${CC_USER}@${CC_HOST}:${CC_PATH}/${CIRCLE_PROJECT_USERNAME}_${CIRCLE_PROJECT_REPONAME}_latest
+           
   deploy_dev_sif:
     docker:
       - image: singularityware/singularity:3.2.1-slim
@@ -138,6 +150,18 @@ jobs:
             docker push $DOCKER_RELEASE
             docker push $DOCKER_NAME
 
+  deploy_release_cc:
+    docker:
+      - image: docker:17.05.0-ce-git
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - run: 
+          name: Push singularity image to compute canada
+          no_output_timeout: 1h
+          command: |
+            scp /tmp/workspace/singularity_image.sif ${CC_USER}@${CC_HOST}:${CC_PATH}/${CIRCLE_PROJECT_USERNAME}_${CIRCLE_PROJECT_REPONAME}_${CIRCLE_TAG}
+           
   deploy_release_sif:
     docker:
       - image: singularityware/singularity:3.2.1-slim
@@ -187,7 +211,7 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - deploy_dev_sif:
+      - deploy_dev_cc:
           requires:
             - build_sif
             - test_sif
@@ -215,7 +239,7 @@ workflows:
               only: /^v.*/
             branches:
               ignore: /.*/
-      - deploy_release_sif:
+      - deploy_release_cc:
           requires:
             - build
             - test
