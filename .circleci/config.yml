@@ -10,7 +10,8 @@ jobs:
           name: Building Docker container
           no_output_timeout: 1h
           command: |
-              export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
+              if [ "$CIRCLE_BRANCH" = "master" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
+              export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$MY_TAG
               docker build -t $DOCKER_NAME .
               docker save $DOCKER_NAME -o /tmp/docker_image.tar
       - persist_to_workspace:
@@ -54,7 +55,8 @@ jobs:
       - run:
           name: Running Tests
           command: |
-              export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
+              if [ "$CIRCLE_BRANCH" = "master" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
+              export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$MY_TAG
               # put tests here
               echo "no tests implemented yet"
               #docker run -it $DOCKER_NAME ls
@@ -79,13 +81,18 @@ jobs:
     docker:
       - image: docker:17.05.0-ce-git
     steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "5a:4b:ef:15:70:14:a6:a1:0d:ca:4c:b8:e0:dd:a4:7d"
       - attach_workspace:
           at: /tmp/workspace
       - run: 
           name: Push singularity image to compute canada
           no_output_timeout: 1h
           command: |
-            scp /tmp/workspace/singularity_image.sif ${CC_USER}@${CC_HOST}:${CC_PATH}/${CIRCLE_PROJECT_USERNAME}_${CIRCLE_PROJECT_REPONAME}_latest
+            ssh-keyscan $CC_HOST >> ~/.ssh/known_hosts
+            if [ "$CIRCLE_BRANCH" = "master" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
+            scp /tmp/workspace/singularity_image.sif ${CC_USER}@${CC_HOST}:${CC_PATH}/${CIRCLE_PROJECT_USERNAME}_${CIRCLE_PROJECT_REPONAME}_${MY_TAG}.sif
            
   deploy_dev_sif:
     docker:
@@ -103,7 +110,8 @@ jobs:
       - run:
           name: Pushing build to sylabs cloud
           command: |
-            singularity push --allow-unsigned /tmp/workspace/singularity_image.sif library://${SYLABS_USER}/circleci/${CIRCLE_PROJECT_REPONAME}:latest
+            if [ "$CIRCLE_BRANCH" = "master" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
+            singularity push --allow-unsigned /tmp/workspace/singularity_image.sif library://${SYLABS_USER}/circleci/${CIRCLE_PROJECT_REPONAME}:$MY_TAG
 
   deploy_dev:
     docker:
@@ -121,7 +129,8 @@ jobs:
           name: Pushing build to docker hub
           command: |
             docker login -u $DOCKER_USER -p $DOCKER_PASS
-            export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
+            if [ "$CIRCLE_BRANCH" = "master" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
+            export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$MY_TAG
             # tag and push here:
             echo docker push $DOCKER_NAME
             docker push $DOCKER_NAME
@@ -141,8 +150,9 @@ jobs:
       - run:
           name: Pushing build to docker hub
           command: |
+            if [ "$CIRCLE_BRANCH" = "master" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
             docker login -u $DOCKER_USER -p $DOCKER_PASS
-            export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
+            export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$MY_TAG
             export DOCKER_RELEASE=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$CIRCLE_TAG
             # tag and push here:
             echo docker tag $DOCKER_NAME $DOCKER_RELEASE
@@ -154,13 +164,17 @@ jobs:
     docker:
       - image: docker:17.05.0-ce-git
     steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "5a:4b:ef:15:70:14:a6:a1:0d:ca:4c:b8:e0:dd:a4:7d"
       - attach_workspace:
           at: /tmp/workspace
       - run: 
           name: Push singularity image to compute canada
           no_output_timeout: 1h
           command: |
-            scp /tmp/workspace/singularity_image.sif ${CC_USER}@${CC_HOST}:${CC_PATH}/${CIRCLE_PROJECT_USERNAME}_${CIRCLE_PROJECT_REPONAME}_${CIRCLE_TAG}
+            ssh-keyscan $CC_HOST >> ~/.ssh/known_hosts
+            scp /tmp/workspace/singularity_image.sif ${CC_USER}@${CC_HOST}:${CC_PATH}/${CIRCLE_PROJECT_USERNAME}_${CIRCLE_PROJECT_REPONAME}_${CIRCLE_TAG}.sif
            
   deploy_release_sif:
     docker:
@@ -204,17 +218,10 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - test_sif:
-          requires:
-            - build_sif
-          context: org-global
-          filters:
-            tags:
-              only: /.*/
       - deploy_dev_cc:
           requires:
             - build_sif
-            - test_sif
+            - test
           context: org-global
           filters:
             tags:
@@ -227,8 +234,7 @@ workflows:
           filters:
             tags:
               ignore: /^v.*/
-            branches:
-              only: master
+
       - deploy_release:
           requires:
             - build
@@ -241,9 +247,8 @@ workflows:
               ignore: /.*/
       - deploy_release_cc:
           requires:
-            - build
+            - build_sif
             - test
-            - deploy_release
           context: org-global
           filters:
             tags:
