@@ -19,7 +19,6 @@ then
  exit 1
 fi
 
-
 in_bids=$1 
 out_folder=$2 
 analysis_level=$3
