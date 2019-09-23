@@ -10,7 +10,7 @@ jobs:
           name: Building Docker container
           no_output_timeout: 1h
           command: |
-              if [ "$CIRCLE_BRANCH" = "master" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
+              if [ "$CIRCLE_BRANCH" = "master" -o "$CIRCLE_BRANCH" = "" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
               export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$MY_TAG
               docker build -t $DOCKER_NAME .
               docker save $DOCKER_NAME -o /tmp/docker_image.tar
@@ -55,7 +55,7 @@ jobs:
       - run:
           name: Running Tests
           command: |
-              if [ "$CIRCLE_BRANCH" = "master" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
+              if [ "$CIRCLE_BRANCH" = "master" -o "$CIRCLE_BRANCH" = "" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
               export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$MY_TAG
               # put tests here
               echo "no tests implemented yet"
@@ -150,9 +150,8 @@ jobs:
       - run:
           name: Pushing build to docker hub
           command: |
-            if [ "$CIRCLE_BRANCH" = "master" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
             docker login -u $DOCKER_USER -p $DOCKER_PASS
-            export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$MY_TAG
+            export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
             export DOCKER_RELEASE=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$CIRCLE_TAG
             # tag and push here:
             echo docker tag $DOCKER_NAME $DOCKER_RELEASE
