@@ -21,9 +21,11 @@ jobs:
     
       - attach_workspace:
          at: /tmp/workspace
-      - singularity/build-image:
-         from-uri: docker-archive:///tmp/workspace/docker_image.tar
-         image: /tmp/singularity_image.sif
+      - run:
+         name: Building container
+         no_output_timeout: 1h
+         command: |
+           sudo singularity build /tmp/singularity_image.sif docker-archive:///tmp/workspace/docker_image.tar
 
 
     # run tests:
