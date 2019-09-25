@@ -4,7 +4,26 @@ orbs:
 
 jobs:
 
-  build_test_singularity:
+  build_sif:
+    docker:
+    - image: singularityware/singularity:3.2.1-slim
+    steps:
+    - checkout
+    - attach_workspace:
+        at: /tmp/workspace
+    - run:
+        name: Building singularity image from docker tar
+        no_output_timeout: 1h
+        command: |
+          singularity build /tmp/singularity_image.sif docker-archive:///tmp/workspace/docker_image.tar
+    - persist_to_workspace:
+        root: /tmp
+        paths:
+        - singularity_image.sif
+        
+        
+  #running a singularity requires a machine executor, not docker..
+  test_sif:
     machine: true
     steps:
 
@@ -17,57 +36,18 @@ jobs:
            sudo apt-get update
       - singularity/debian-install-3
 
-    # build singularity image from docker tar
+    # get singularity image from workspace
     
       - attach_workspace:
          at: /tmp/workspace
-      - run:
-         name: Building container
-         no_output_timeout: 1h
-         command: |
-           sudo singularity build /tmp/singularity_image.sif docker-archive:///tmp/workspace/docker_image.tar
 
-
-    # run tests:
-
-      - run:
-         name: Testing singularity image with exec
-         no_output_timeout: 1h
-         command: |
-           singularity exec /tmp/singularity_image.sif ls
-
-    # save sif to workspace for later deployment
-    
-      - persist_to_workspace:
-         root: /tmp
-         paths:
-           - singularity_image.sif
-
-
-  #job template for running additional tests 
-  run_tests:
-    machine: true
-    steps:
-
-    # set-up machine with singularity
-      - singularity/install-go
-      - run:
-         name: Update repo
-         command: |
-           sudo apt-get update
-      - singularity/debian-install-3
-    # get built image
-      - attach_workspace:
-         at: /tmp/workspace
     # run tests:
       - run:
          name: Testing singularity image with exec
          no_output_timeout: 1h
          command: |
            singularity exec /tmp/workspace/singularity_image.sif ls
-
-
-      
+           
   build_docker:
     docker:
     - image: docker:17.05.0-ce-git
@@ -86,46 +66,7 @@ jobs:
         root: /tmp
         paths:
         - docker_image.tar
-  build_sif:
-    docker:
-    - image: singularityware/singularity:3.2.1-slim
-    steps:
-    - checkout
-    - attach_workspace:
-        at: /tmp/workspace
-    - run:
-        name: Building singularity image from docker tar
-        no_output_timeout: 1h
-        command: |
-          singularity build /tmp/singularity_image.sif docker-archive:///tmp/workspace/docker_image.tar
-    - persist_to_workspace:
-        root: /tmp
-        paths:
-        - singularity_image.sif
-  test:
-    docker:
-    - image: docker:17.05.0-ce-git
-    steps:
-    - setup_remote_docker
-    - attach_workspace:
-        at: /tmp/workspace
-    - run:
-        name: Install dependencies
-        command: |
-          apk add --update make wget
-    - run:
-        name: Load docker image
-        no_output_timeout: 1h
-        command: |
-          docker load -i /tmp/workspace/docker_image.tar
-    - run:
-        name: Running Tests
-        command: |
-          if [ "$CIRCLE_BRANCH" = "master" -o "$CIRCLE_BRANCH" = "" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
-          export DOCKER_NAME=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$MY_TAG
-          # put tests here
-          echo "no tests implemented yet"
-          #docker run -it $DOCKER_NAME ls
+  
   deploy_dev_cc:
     docker:
     - image: docker:17.05.0-ce-git
@@ -142,6 +83,7 @@ jobs:
           ssh-keyscan $CC_HOST >> ~/.ssh/known_hosts
           if [ "$CIRCLE_BRANCH" = "master" ]; then MY_TAG=latest; else MY_TAG=$CIRCLE_BRANCH; fi
           scp /tmp/workspace/singularity_image.sif ${CC_USER}@${CC_HOST}:${CC_PATH}/${CIRCLE_PROJECT_USERNAME}_${CIRCLE_PROJECT_REPONAME}_${MY_TAG}.sif
+  
   deploy_dev:
     docker:
     - image: docker:17.05.0-ce-git
@@ -163,6 +105,7 @@ jobs:
           # tag and push here:
           echo docker push $DOCKER_NAME
           docker push $DOCKER_NAME
+  
   deploy_release:
     docker:
     - image: docker:17.05.0-ce-git
@@ -186,6 +129,7 @@ jobs:
           docker tag $DOCKER_NAME $DOCKER_RELEASE
           docker push $DOCKER_RELEASE
           docker push $DOCKER_NAME
+          
   deploy_release_cc:
     docker:
     - image: docker:17.05.0-ce-git
@@ -202,38 +146,47 @@ jobs:
           ssh-keyscan $CC_HOST >> ~/.ssh/known_hosts
           scp /tmp/workspace/singularity_image.sif ${CC_USER}@${CC_HOST}:${CC_PATH}/${CIRCLE_PROJECT_USERNAME}_${CIRCLE_PROJECT_REPONAME}_${CIRCLE_TAG}.sif
 
-        
-        
+
         
 workflows:
   version: 2
   commit:
     jobs:    
-    - build_test_singularity:
+    - build_docker:
+        filters:
+          tags:
+            only: /.*/
+        context: org-global
+    - build_sif:
         filters:
           tags:
             only: /.*/
         context: org-global
         requires:
         - build_docker
-    - build_docker:
-        filters:
-          tags:
-            only: /.*/
-        context: org-global
+#uncomment if there are tests defined
+#    - test_sif:
+#        filters:
+#          tags:
+#            only: /.*/
+#        context: org-global
+#        requires:
+#        - build_sif
     - deploy_dev_cc:
         filters:
           tags:
             ignore: /^v.*/
         requires:
-        - build_test_singularity
+        - build_sif
+#        - test_sif
         context: org-global
     - deploy_dev:
         filters:
           tags:
             ignore: /^v.*/
         requires:
-        - build_test_singularity
+        - build_docker
+#        - test_sif 
         context: org-global
     - deploy_release:
         filters:
@@ -242,7 +195,8 @@ workflows:
           branches:
             ignore: /.*/
         requires:
-        - build_test_singularity
+        - build_docker
+#        - test_sif
         context: org-global
     - deploy_release_cc:
         filters:
@@ -251,6 +205,7 @@ workflows:
           branches:
             ignore: /.*/
         requires:
-        - build_test_singularity
+        - build_sif
+#        - test_sif
         context: org-global
 
