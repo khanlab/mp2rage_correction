@@ -1,20 +1,20 @@
-function [] = mp2rage_correction(B1_filename,MP2RAGE_filename,B1_para_filename,MP2RAGE_para_filename,MP2RAGE_corrected_output_filename,T1_corrected_output_filename)
+function [] = mp2rage_correction(Sa2RAGE_filename,MP2RAGE_filename,B1_para_filename,MP2RAGE_para_filename,MP2RAGE_corrected_output_filename,T1_corrected_output_filename)
 
 % Scripts to remove residual B1 bias from T1 maps calculated with the
 % MP2RAGE sequence
 % Correction of T1 estimations as sugested on:
 % Marques, J.P., Gruetter, R., 2013. New Developments and Applications of the MP2RAGE Sequence - Focusing the Contrast and High Spatial Resolution R1 Mapping. PLoS ONE 8. doi:10.1371/journal.pone.0069294
 %
-% in this script it is assumed that the B1 maps have been coregistered to the
+% in this script it is assumed that the Sa2RAGE UNI image has been coregistered to the
 % space of the MP2RAGE image and that they now have the B1 has in the
 % process been interpolated to the same resolution.
 % 
 % test:
-% mp2rage_correction('sa2rage_B1map_reg.nii.gz','mp2rage_sag_700iso_p3_944_UNI_Images.nii.gz','sa2rage_parameters.csv','mp2rage_parameters.csv','MP2rage_corrected.nii','T1_corrected.nii') 
+% mp2rage_correction('sa2rage_UNI_Images.nii.gz','mp2rage_sag_700iso_p3_944_UNI_Images.nii.gz','sa2rage_parameters.csv','mp2rage_parameters.csv','MP2rage_corrected.nii','T1_corrected.nii') 
 %
  
 if nargin < 6
-    disp('usage: <B1_filename(.nii.gz)> <MP2RAGE_filename(.nii/.nii.gz)> <B1_para_filename(.csv)> <MP2RAGE_para_filename(.csv)> <MP2RAGE_corrected_output_filename(.nii)> <T1_corrected_output_filename(.nii)>');
+    disp('usage: <SA2RAGE_UNI_filename(.nii.gz)> <MP2RAGE_UNI_filename(.nii/.nii.gz)> <B1_para_filename(.csv)> <MP2RAGE_para_filename(.csv)> <MP2RAGE_corrected_output_filename(.nii)> <T1_UNI_corrected_output_filename(.nii)> ');
     return
 end
     
@@ -31,10 +31,10 @@ Sa2RAGE.TIs=str2num( sa2rage_p.Var2{find(strcmp(sa2rage_p.Var1,'TIs'))} );
 Sa2RAGE.NZslices=str2num( sa2rage_p.Var2{find(strcmp(sa2rage_p.Var1,'NZslices'))} );
 Sa2RAGE.FlipDegrees=str2num( sa2rage_p.Var2{find(strcmp(sa2rage_p.Var1,'FlipDegrees'))} );
 Sa2RAGE.averageT1=str2num( sa2rage_p.Var2{find(strcmp(sa2rage_p.Var1,'averageT1'))} );
-Sa2RAGE.B1filename=B1_filename;
+Sa2RAGE.filename=Sa2RAGE_filename;
 
 %load B1 image
-B1=load_untouch_nii(Sa2RAGE.B1filename);
+Sa2RAGE=load_untouch_nii(Sa2RAGE.filename);
 
 mp2rage_p = readtable(MP2RAGE_para_filename);
 MP2RAGE.B0 = str2num( mp2rage_p.Var2{find(strcmp(mp2rage_p.Var1,'B0'))} );
@@ -98,12 +98,20 @@ MP2RAGEimg=load_untouch_nii(MP2RAGE.filename);
     
 
 %% performing the correction    
-    [ B1corr T1corrected MP2RAGEcorr] = T1B1correctpackage( [],B1,Sa2RAGE,MP2RAGEimg,[],MP2RAGE,[],MP2RAGE.InvEFF);
+    % this was if Sa2RAGE B1map was being used:
+    %[ B1corr T1corrected MP2RAGEcorr] = T1B1correctpackage( [],B1,Sa2RAGE,MP2RAGEimg,[],MP2RAGE,[],MP2RAGE.InvEFF);
     
+    % here we use the Sa2RAGE UNI instead (better compatibility):
+     [ B1corr T1corrected MP2RAGEcorr] = T1B1correctpackage( Sa2RAGEimg,[],Sa2RAGE,MP2RAGEimg,[],MP2RAGE,[],MP2RAGE.InvEFF);
+
     
     %%  saving the data 
     save_untouch_nii(MP2RAGEcorr,MP2RAGE_corrected_output_filename) 
     save_untouch_nii(T1corrected,T1_corrected_output_filename)
+    
+    % also need to generate and save the UNI-DEN image (or use python helper for
+    % that..)
+    
     
 %     %%
 %     % saving the data

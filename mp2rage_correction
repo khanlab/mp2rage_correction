@@ -209,34 +209,46 @@ fi
 
 
 
-b1map=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-b1map_SA2RAGE.nii.gz | head -n 1` 
-b1inv1=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_SA2RAGE*.nii*" | head -n 1` 
-b1inv2=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_SA2RAGE*.nii*" | head -n 1` 
+b1inv1=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_*SA2RAGE.nii*" | head -n 1` 
+b1inv2=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_*SA2RAGE.nii*" | head -n 1` 
+b1uni=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-{b1Div,UNI}_SA2RAGE.nii.gz | head -n 1` 
 
-# iterate over runs and echos, by finding *MP2RAGE*T1map images
 
-for t1map in $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}*acq-MP2RAGE*T1map.nii* 
+#verify b1inv1 and b1inv2 exist
+if [ ! -e "$b1inv1" -o ! -e "$b1inv2" ]
+then
+	echo "Required SA2RAGE inv-1 or SA2RAGE inv-2 not found! (searched for: $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_SA2RAGE*.nii*)"
+	exit 1
+fi
+
+# technically, we don't require the b1map if UNI/b1Div is provided
+if [ ! -e "$b1uni" ]
+then
+	echo "required Sa2RAGE UNI/b1Div does not exist!"
+	exit 1
+fi
+
+
+# iterate over runs and echos, by finding *_acq-UNI_*MP2RAGE images
+
+for t1uni in $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}*acq-UNI_*MP2RAGE.nii* 
 do
 
- beforeacq=${t1map%%_acq-MP2RAGE*}
+ echo t1uni: $t1uni
+ beforeacq=${t1uni%%_acq-UNI_*}
  beforeacq=${beforeacq##*/}
- afteracq=${t1map##*acq-MP2RAGE_}
- afteracq=${afteracq%%_T1map.*}
+ afteracq=${t1uni##*acq-UNI_}
+ afteracq=${afteracq%%_MP2RAGE.*}
 
 
  t1inv1=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}*inv-1*${afteracq}*MP2RAGE.nii*" | head -n 1`
- if [ ! -n "$t1inv1" ]; then echo "t1inv1 missing, skipping correction for $t1map"; continue; fi
+ if [ ! -n "$t1inv1" ]; then echo "t1inv1 missing, skipping correction for $t1uni"; continue; fi
  t1inv2=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}*inv-2*${afteracq}*MP2RAGE.nii*" | head -n 1`
- if [ ! -n "$t1inv2" ]; then echo "t1inv2 missing, skipping correction for $t1map"; continue; fi
- t1uni=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}*acq-UNI*${afteracq}*MP2RAGE.nii*" | head -n 1`
- if [ ! -n "$t1uni" ]; then echo "t1uni missing, skipping correction for $t1map"; continue; fi
- t1den=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}*acq-MP2RAGE*${afteracq}*T1w.nii*" | head -n 1`
- if [ ! -n "$t1den" ]; then echo "t1den missing, skipping correction for $t1map"; continue; fi
+ if [ ! -n "$t1inv2" ]; then echo "t1inv2 missing, skipping correction for $t1uni"; continue; fi
 
- echo b1map: $b1map
+ echo b1uni: $b1uni
  echo b1inv1: $b1inv1
  echo b1inv2: $b1inv2
- echo t1map: $t1map
  echo t1uni: $t1uni
  echo t1inv1: $t1inv1
  echo t1inv2: $t1inv2
@@ -271,7 +283,7 @@ else
   echo "TIs=[`getValueJson.py $t1inv1_json InversionTime`,`getValueJson.py $t1inv2_json InversionTime`]" >> $t1_params
   NZ=`fslval $t1inv1 dim1`
   ResPE=`getValueJson.py $t1inv1_json AcquisitionMatrixPE`
-  NumPEsteps=`getValueJson.py $t1inv1_json global const NumberOfPhaseEncodingSteps`
+  NumPEsteps=`getValueJson.py $t1inv1_json PhaseEncodingSteps`
   PartialFourier=`bashcalc $NumPEsteps/$ResPE` 
   #NZslices = Slices Per Slab * [PartialFourierInSlice-0.5  0.5]
   echo "NZslices=[`bashcalc "$NZ*($PartialFourier - 0.5)"`,`bashcalc "$NZ*( 0.5)"`]" >> $t1_params
@@ -307,7 +319,7 @@ else
   echo "TIs=[${TI1_ms}e-3,${TI2_ms}e-3]" >> $b1_params
   AccelPE=`getValueJson.py $b1inv1_json ParallelReductionFactorInPlane`
   ResPE=`getValueJson.py $b1inv1_json AcquisitionMatrixPE`
-  NumPEsteps=`getValueJson.py $b1inv1_json global const NumberOfPhaseEncodingSteps`
+  NumPEsteps=`getValueJson.py $b1inv1_json PhaseEncodingSteps`
   PartialFourier=`bashcalc $NumPEsteps/$ResPE` 
   #  Sa2RAGE.NZslices=128.*[0.25 0.5]./2 # Base Resolution * [PartialFourierInPE-0.5  0.5]/iPATpe  
   NZ1=`bashcalc "$ResPE*($PartialFourier - 0.5)/$AccelPE"`
@@ -319,6 +331,7 @@ fi
 
 #convert to float for precision
 t1uni_f=$work_dir/${t1uni##*/}
+echo fslmaths $t1uni $t1uni_f -odt float 
 fslmaths $t1uni $t1uni_f -odt float 
 
 #now, register the sa2rage inv2 to the mp2rage inv2
@@ -331,24 +344,25 @@ echo flirt -v -nosearch -usesqform -in $b1inv2 -out $b1inv2_reg -omat $b1_to_t1 
 flirt -v -nosearch -usesqform -in $b1inv2 -out $b1inv2_reg -omat $b1_to_t1 -ref $t1inv2
 fi
 
-#transform sa2rage b1map to t1 space
-b1map_file=${b1map##*/}
-b1map_reg=$work_dir/${b1map_file%%.nii.gz}_space-T1w.nii.gz
-if [ ! -e $b1map_reg ]
+#transform sa2rage UNI to t1 space
+b1uni_file=${b1uni##*/}
+b1uni_reg=$work_dir/${b1uni_file%%.nii.gz}_space-T1w.nii.gz
+if [ ! -e $b1uni_reg ]
 then
-echo flirt -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1map -out $b1map_reg 
-flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1map -out $b1map_reg 
+echo flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1uni -out $b1uni_reg 
+flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1uni -out $b1uni_reg 
 fi
 
-t1map_file=${t1map##*/}
-t1map_corr=$work_dir/${t1map_file%%_T1map.nii.gz}_proc-SA2RAGE_T1map.nii
+
+
+t1map_corr=$work_dir/${beforeacq}_acq-MP2RAGE_${afteracq}_proc-SA2RAGE_T1map.nii
 t1uni_file=${t1uni##*/}
 t1uni_corr=$work_dir/${t1uni_file%%_MP2RAGE.nii.gz}_proc-SA2RAGE_MP2RAGE.nii
 
 if [ ! -e $t1map_corr ]
 then
-echo run_mp2rage_correction.sh $b1map_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr 
-run_mp2rage_correction.sh $b1map_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr 
+echo run_mp2rage_correction.sh $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr 
+#run_mp2rage_correction.sh $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr 
 fi
 
 gzip $t1map_corr $t1uni_corr
