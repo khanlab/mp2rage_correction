@@ -1,4 +1,4 @@
-function [] = mp2rage_correction(Sa2RAGE_filename,MP2RAGE_filename,B1_para_filename,MP2RAGE_para_filename,MP2RAGE_corrected_output_filename,T1_corrected_output_filename)
+function [] = mp2rage_correction(Sa2RAGE_filename,Sa2RAGE_B1_filename,MP2RAGE_filename,B1_para_filename,MP2RAGE_para_filename,MP2RAGE_corrected_output_filename,T1_corrected_output_filename)
 
 % Scripts to remove residual B1 bias from T1 maps calculated with the
 % MP2RAGE sequence
@@ -34,7 +34,8 @@ Sa2RAGE.averageT1=str2num( sa2rage_p.Var2{find(strcmp(sa2rage_p.Var1,'averageT1'
 Sa2RAGE.filename=Sa2RAGE_filename;
 
 %load B1 image
-Sa2RAGE=load_untouch_nii(Sa2RAGE.filename);
+B1=load_untouch_nii(Sa2RAGE_B1_filename);
+Sa2RAGEimg=load_untouch_nii(Sa2RAGE.filename);
 
 mp2rage_p = readtable(MP2RAGE_para_filename);
 MP2RAGE.B0 = str2num( mp2rage_p.Var2{find(strcmp(mp2rage_p.Var1,'B0'))} );
@@ -99,10 +100,13 @@ MP2RAGEimg=load_untouch_nii(MP2RAGE.filename);
 
 %% performing the correction    
     % this was if Sa2RAGE B1map was being used:
-    %[ B1corr T1corrected MP2RAGEcorr] = T1B1correctpackage( [],B1,Sa2RAGE,MP2RAGEimg,[],MP2RAGE,[],MP2RAGE.InvEFF);
+  %  [ B1corr T1corrected MP2RAGEcorr] = T1B1correctpackage( [],B1,Sa2RAGE,MP2RAGEimg,[],MP2RAGE,[],MP2RAGE.InvEFF);
+    
+    %supply both, for testing:
+    [ B1corr T1corrected MP2RAGEcorr] = T1B1correctpackage( Sa2RAGEimg,B1,Sa2RAGE,MP2RAGEimg,[],MP2RAGE,[],MP2RAGE.InvEFF);
     
     % here we use the Sa2RAGE UNI instead (better compatibility):
-     [ B1corr T1corrected MP2RAGEcorr] = T1B1correctpackage( Sa2RAGEimg,[],Sa2RAGE,MP2RAGEimg,[],MP2RAGE,[],MP2RAGE.InvEFF);
+    % [ B1corr T1corrected MP2RAGEcorr] = T1B1correctpackage( Sa2RAGEimg,[],Sa2RAGE,MP2RAGEimg,[],MP2RAGE,[],MP2RAGE.InvEFF);
 
     
     %%  saving the data 

@@ -211,7 +211,8 @@ fi
 
 b1inv1=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_*SA2RAGE.nii*" | head -n 1` 
 b1inv2=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_*SA2RAGE.nii*" | head -n 1` 
-b1uni=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-{b1Div,UNI}_SA2RAGE.nii.gz | head -n 1` 
+b1uni=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-{b1Div,UNI}_SA2RAGE.nii* | head -n 1` 
+b1map=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-b1map_*SA2RAGE.nii* | head -n 1` 
 
 
 #verify b1inv1 and b1inv2 exist
@@ -247,6 +248,7 @@ do
  if [ ! -n "$t1inv2" ]; then echo "t1inv2 missing, skipping correction for $t1uni"; continue; fi
 
  echo b1uni: $b1uni
+ echo b1map: $b1map
  echo b1inv1: $b1inv1
  echo b1inv2: $b1inv2
  echo t1uni: $t1uni
@@ -313,10 +315,17 @@ else
   echo "TR=`getValueJson.py $b1inv1_json RepetitionTime`" >> $b1_params
   echo "TRFLASH=$sa2rage_echo_spacing" >> $b1_params  #can get from PDF Protocol as Sequence: Echo Spacing
 
-  #for some reason, dicom tag for TI in Sa2RAGE in milliseconds instead of seconds, so need to divide by 1000
+  #for older scans, dicom tag for TI in Sa2RAGE in milliseconds instead of seconds, so need to divide by 1000
+  # if inversion time is greater than 10, then can assume we are in milliseconds (since TI=10s is way too large..) 
+ 
   TI1_ms=`getValueJson.py $b1inv1_json InversionTime` 
   TI2_ms=`getValueJson.py $b1inv2_json InversionTime`
-  echo "TIs=[${TI1_ms}e-3,${TI2_ms}e-3]" >> $b1_params
+  is_milliseconds=`bashcalc "$TI1_ms > 10"`
+  if [ "$is_milliseconds" = "1" ]
+  then
+    echo "InversionTime is assumed to be in milliseconds, accounting for this.."
+    echo "TIs=[${TI1_ms}e-3,${TI2_ms}e-3]" >> $b1_params
+  fi
   AccelPE=`getValueJson.py $b1inv1_json ParallelReductionFactorInPlane`
   ResPE=`getValueJson.py $b1inv1_json AcquisitionMatrixPE`
   NumPEsteps=`getValueJson.py $b1inv1_json PhaseEncodingSteps`
@@ -353,6 +362,14 @@ echo flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1uni -ou
 flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1uni -out $b1uni_reg 
 fi
 
+b1map_file=${b1map##*/}
+b1map_reg=$work_dir/${b1map_file%%.nii.gz}_space-T1w.nii.gz
+if [ ! -e $b1map_reg ]
+then
+echo flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1map -out $b1map_reg 
+flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1map -out $b1map_reg 
+fi
+
 
 
 t1map_corr=$work_dir/${beforeacq}_acq-MP2RAGE_${afteracq}_proc-SA2RAGE_T1map.nii
@@ -361,7 +378,7 @@ t1uni_corr=$work_dir/${t1uni_file%%_MP2RAGE.nii.gz}_proc-SA2RAGE_MP2RAGE.nii
 
 if [ ! -e $t1map_corr ]
 then
-echo run_mp2rage_correction.sh $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr 
+echo run_mp2rage_correction.sh $b1uni_reg $b1map_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr 
 #run_mp2rage_correction.sh $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr 
 fi
 
