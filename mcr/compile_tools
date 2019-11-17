@@ -1,6 +1,6 @@
 #!/bin/bash
 
-version=v92
+version=v96
 
 mcr_dir=`dirname $0`
 matlab_dir=`realpath $mcr_dir/../matlab_src`
