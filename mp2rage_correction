@@ -213,6 +213,12 @@ b1inv1=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_*SA2RA
 b1inv2=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_*SA2RAGE.nii*" | head -n 1` 
 b1uni=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-{b1Div,UNI}_*SA2RAGE.nii* | head -n 1` 
 b1map=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-b1map_*SA2RAGE.nii* | head -n 1` 
+if [ ! -e "$b1map" ]
+then
+ nob1map=1
+ else
+	 nob1map=0
+ fi
 
 
 #verify b1inv1 and b1inv2 exist
@@ -328,6 +334,8 @@ else
   then
     echo "InversionTime is assumed to be in milliseconds, accounting for this.."
     echo "TIs=[${TI1_ms}e-3,${TI2_ms}e-3]" >> $b1_params
+    else
+    echo "TIs=[${TI1_ms},${TI2_ms}]" >> $b1_params
   fi
   AccelPE=`getValueJson.py $b1inv1_json ParallelReductionFactorInPlane`
   ResPE=`getValueJson.py $b1inv1_json AcquisitionMatrixPE`
@@ -365,6 +373,11 @@ echo flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1uni -ou
 flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1uni -out $b1uni_reg -interp nearestneighbour
 fi
 
+
+
+
+if [ "$nob1map" = "0" ]
+then
 b1map_file=${b1map##*/}
 b1map_reg=$work_dir/${b1map_file%%.nii.gz}_space-T1w.nii.gz
 if [ ! -e $b1map_reg ]
@@ -372,27 +385,30 @@ then
 echo flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1map -out $b1map_reg -interp nearestneighbour
 flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1map -out $b1map_reg -interp nearestneighbour
 fi
-
+else
+	b1map_reg="";
+fi
 
 
 t1map_corr=$work_dir/${beforeacq}_acq-MP2RAGE_${afteracq}_proc-SA2RAGE_T1map.nii
 b1map_corr=$work_dir/${beforeacq}_acq-MP2RAGE_${afteracq}_proc-SA2RAGE_B1map.nii
 t1uni_file=${t1uni##*/}
 t1uni_corr=$work_dir/${t1uni_file%%_MP2RAGE.nii.gz}_proc-SA2RAGE_MP2RAGE.nii
+uni_den=$work_dir/${t1uni_file%%_MP2RAGE.nii.gz}_proc-SA2RAGE_T1w.nii
 
-if [ ! -e $t1map_corr ]
-then
-echo run_mp2rage_correction.sh $b1uni_reg $b1map_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr 
-echo "mp2rage_correction('$b1uni_reg','$b1map_reg','$t1uni_f','$b1_params','$t1_params','$t1uni_corr','$t1map_corr','$b1map_corr')"
-run_mp2rage_correction.sh $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr
-fi
+#if [ ! -e $t1map_corr ]
+#then
+echo run_mp2rage_correction.sh $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den
+echo "mp2rage_correction('$t1inv1','$t1inv2','$b1uni_reg','$b1map_reg','$t1uni_f','$b1_params','$t1_params','$t1uni_corr','$t1map_corr','$b1map_corr','$uni_den')"
+run_mp2rage_correction.sh $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den
+#fi
 
-gzip $t1map_corr $t1uni_corr $b1map_corr
+gzip $t1map_corr $t1uni_corr $b1map_corr $uni_den
 
 #copy to bids folder:
 out_deriv=$derivatives/$subj_sess_dir
 mkdir -p $out_deriv/anat $out_deriv/fmap
-cp -v ${t1map_corr}.gz ${t1uni_corr}.gz $out_deriv/anat
+cp -v ${t1map_corr}.gz ${t1uni_corr}.gz ${uni_den} $out_deriv/anat
 cp -v ${b1map_corr}.gz  $out_deriv/fmap
 
 done # loop through t1map inputs

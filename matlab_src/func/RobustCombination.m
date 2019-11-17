@@ -1,5 +1,5 @@
 
-function [MP2RAGEimgRobustPhaseSensitive]=RobustCombination(MP2RAGE,regularization)
+function [MP2RAGEimgRobustPhaseSensitive]=RobustCombination(uni,inv1,inv2,out,regularization)
 
 % MP2RAGE is a structure that should have the following fields
 % MP2RAGE.filenameUNI;
@@ -15,11 +15,11 @@ function [MP2RAGEimgRobustPhaseSensitive]=RobustCombination(MP2RAGE,regularizati
 
 
 if isempty(regularization)
-    multiplyingFactor=1;
-    FinalChoice='n';
+    multiplyingFactor=6;
+ %   FinalChoice='n';
 else
     multiplyingFactor=regularization;
-    FinalChoice='n';
+ %   FinalChoice='n';
 end;
 
 %% defines relevant functions
@@ -32,9 +32,9 @@ rootsquares_neg  =@(a,b,c)(-b-sqrt(b.^2 -4 *a.*c))./(2*a);
 
 %% load Data
 
-MP2RAGEimg=load_untouch_nii(MP2RAGE.filenameUNI);
-INV1img=load_untouch_nii(MP2RAGE.filenameINV1);
-INV2img=load_untouch_nii(MP2RAGE.filenameINV2);
+MP2RAGEimg=load_untouch_nii(uni);
+INV1img=load_untouch_nii(inv1);
+INV2img=load_untouch_nii(inv2);
 
 if and(min(MP2RAGEimg.img(:))>=0,max(MP2RAGEimg.img(:))>=0.51)
     % converts MP2RAGE to -0.5 to 0.5 scale - assumes that it is getting only
@@ -71,32 +71,32 @@ INV1final(abs(INV1img.img-INV1pos)<=abs(INV1img.img-INV1neg))=INV1pos(abs(INV1im
 
 
 %% visualizing the data
-
-pos=round(3/5*size(INV1final));
-visualize=1;
-if visualize
-    figureJ(200)
-    subplot(411)
-    Orthoview(INV1pos,pos,[-200 200])
-    title('positive root')
-    
-    subplot(412)
-    Orthoview(INV1neg,pos,[-200 200])
-    title('negative root')
-    
-    subplot(413)
-    Orthoview(INV1img.img,pos,[-200 200])
-    title('Phase Corrected Sum of Squares  root')
-    
-    subplot(414)
-    Orthoview(INV1final,pos,[-200 200])
-    title('INV1 final')
-    
-end
-
-clear INV1img
-clear INV1pos
-clear INV1neg
+% 
+% pos=round(3/5*size(INV1final));
+% visualize=1;
+% if visualize
+%     figureJ(200)
+%     subplot(411)
+%     Orthoview(INV1pos,pos,[-200 200])
+%     title('positive root')
+%     
+%     subplot(412)
+%     Orthoview(INV1neg,pos,[-200 200])
+%     title('negative root')
+%     
+%     subplot(413)
+%     Orthoview(INV1img.img,pos,[-200 200])
+%     title('Phase Corrected Sum of Squares  root')
+%     
+%     subplot(414)
+%     Orthoview(INV1final,pos,[-200 200])
+%     title('INV1 final')
+%     
+% end
+% 
+% clear INV1img
+% clear INV1pos
+% clear INV1neg
 
 %% lambda calculation
 
@@ -104,7 +104,6 @@ clear INV1neg
 % is not the ase when the image is bias field corrected, in which case the
 % noise estimated at the edge of the imagemight not be such a good measure
 
-while strcmp(FinalChoice,'n')
     
     noiselevel=multiplyingFactor*mean(mean(mean(INV2img.img(1:end,end-10:end,end-10:end))));
     
@@ -113,49 +112,48 @@ while strcmp(FinalChoice,'n')
     MP2RAGEimgRobustPhaseSensitive=MP2RAGErobustfunc(INV1final,INV2img.img,noiselevel.^2);
     
      % Robust Image view
-    range =[-0.5 0.40]
+  %  range =[-0.5 0.40]
     
-    subplot(211)
-    Orthoview(MP2RAGEimg.img,pos,range),title('MP2RAGE UNI_Image')
+   % subplot(211)
+  %  Orthoview(MP2RAGEimg.img,pos,range),title('MP2RAGE UNI_Image')
     
     % subplot(312)
     % Orthoview(MP2RAGEimgRobustScanner,pos,range),title('MP2RAGE Robust Scanner')
     
-    subplot(212)
-    Orthoview(MP2RAGEimgRobustPhaseSensitive,pos,range),title('MP2RAGE Robust')
-    ylabel(['noise level = ',num2str(multiplyingFactor)])
+ %   subplot(212)
+ %   Orthoview(MP2RAGEimgRobustPhaseSensitive,pos,range),title('MP2RAGE Robust')
+ %   ylabel(['noise level = ',num2str(multiplyingFactor)])
     
-    if isempty(regularization)
+ %   if isempty(regularization)
     
-    FinalChoice=input('Is it a satisfactory noise level ? (y/n) [n]','s')
-    if isempty(FinalChoice)
-        FinalChoice = 'n';
-    end;
+ %   FinalChoice=input('Is it a satisfactory noise level ? (y/n) [n]','s')
+ %   if isempty(FinalChoice)
+ %       FinalChoice = 'n';
+ %   end;
     
-    if strcmp(FinalChoice,'y')|strcmp(FinalChoice,'Y')
-        display(['regularization noise level =',num2str(multiplyingFactor)])
-    else
-        multiplyingFactor=input(['regularization noise level  ? ( current = , ' , num2str(multiplyingFactor),')'])
+  %  if strcmp(FinalChoice,'y')|strcmp(FinalChoice,'Y')
+ %       display(['regularization noise level =',num2str(multiplyingFactor)])
+ %   else
+   %     multiplyingFactor=input(['regularization noise level  ? ( current = , ' , num2str(multiplyingFactor),')'])
         
-    end;
-    else
-        FinalChoice = 'y';
-        display(['regularization noise level =',num2str(multiplyingFactor)])
-    end
+ %   end;
+  %  else
+ %       FinalChoice = 'y';
+  %      display(['regularization noise level =',num2str(multiplyingFactor)])
+  %  end
     
-end;
+%end;
 
 % saving data if that is the case
-if isfield(MP2RAGE,'filenameOUT')
-    if ~isempty(MP2RAGE.filenameOUT)
+
         if integerformat==0
             MP2RAGEimg.img=MP2RAGEimgRobustPhaseSensitive;
-            save_untouch_nii(MP2RAGEimg,MP2RAGE.filenameOUT);
+            save_untouch_nii(MP2RAGEimg,out);
         else
             MP2RAGEimg.img=round(4095*(MP2RAGEimgRobustPhaseSensitive+0.5));
-            save_untouch_nii(MP2RAGEimg,MP2RAGE.filenameOUT);
+            save_untouch_nii(MP2RAGEimg,out);
             
-        end;
+        end
         
-    end
-end;
+end
+
