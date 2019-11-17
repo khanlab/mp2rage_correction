@@ -1,4 +1,4 @@
-function [] = mp2rage_correction(Sa2RAGE_filename,Sa2RAGE_B1_filename,MP2RAGE_filename,B1_para_filename,MP2RAGE_para_filename,MP2RAGE_corrected_output_filename,T1_corrected_output_filename)
+function [] = mp2rage_correction(Sa2RAGE_filename,Sa2RAGE_B1_filename,MP2RAGE_filename,B1_para_filename,MP2RAGE_para_filename,MP2RAGE_corrected_output_filename,T1_corrected_output_filename,B1_corrected_output_filename)
 
 % Scripts to remove residual B1 bias from T1 maps calculated with the
 % MP2RAGE sequence
@@ -14,7 +14,7 @@ function [] = mp2rage_correction(Sa2RAGE_filename,Sa2RAGE_B1_filename,MP2RAGE_fi
 %
  
 if nargin < 6
-    disp('usage: <SA2RAGE_UNI_filename(.nii.gz)> <MP2RAGE_UNI_filename(.nii/.nii.gz)> <B1_para_filename(.csv)> <MP2RAGE_para_filename(.csv)> <MP2RAGE_corrected_output_filename(.nii)> <T1_UNI_corrected_output_filename(.nii)> ');
+    disp('usage: <SA2RAGE_UNI_filename(.nii.gz)> <SA2RAGE B1 filename (.nii)> <MP2RAGE_UNI_filename(.nii/.nii.gz)> <B1_para_filename(.csv)> <MP2RAGE_para_filename(.csv)> <MP2RAGE_corrected_output_filename(.nii)> <T1_UNI_corrected_output_filename(.nii)> ');
     return
 end
     
@@ -112,7 +112,8 @@ MP2RAGEimg=load_untouch_nii(MP2RAGE.filename);
     %%  saving the data 
     save_untouch_nii(MP2RAGEcorr,MP2RAGE_corrected_output_filename) 
     save_untouch_nii(T1corrected,T1_corrected_output_filename)
-    
+        save_untouch_nii(B1corr,B1_corrected_output_filename)
+
     % also need to generate and save the UNI-DEN image (or use python helper for
     % that..)
     

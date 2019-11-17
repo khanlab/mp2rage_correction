@@ -211,7 +211,7 @@ fi
 
 b1inv1=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_*SA2RAGE.nii*" | head -n 1` 
 b1inv2=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_*SA2RAGE.nii*" | head -n 1` 
-b1uni=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-{b1Div,UNI}_SA2RAGE.nii* | head -n 1` 
+b1uni=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-{b1Div,UNI}_*SA2RAGE.nii* | head -n 1` 
 b1map=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-b1map_*SA2RAGE.nii* | head -n 1` 
 
 
@@ -232,6 +232,7 @@ fi
 
 # iterate over runs and echos, by finding *_acq-UNI_*MP2RAGE images
 
+
 for t1uni in $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}*acq-UNI_*MP2RAGE.nii* 
 do
 
@@ -241,10 +242,12 @@ do
  afteracq=${t1uni##*acq-UNI_}
  afteracq=${afteracq%%_MP2RAGE.*}
 
+ echo beforeacq $beforeacq
+ echo afteracq $afteracq
 
- t1inv1=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}*inv-1*${afteracq}*MP2RAGE.nii*" | head -n 1`
+ t1inv1=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}_inv-1_${afteracq}*MP2RAGE.nii*" | head -n 1`
  if [ ! -n "$t1inv1" ]; then echo "t1inv1 missing, skipping correction for $t1uni"; continue; fi
- t1inv2=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}*inv-2*${afteracq}*MP2RAGE.nii*" | head -n 1`
+ t1inv2=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}_inv-2_${afteracq}*MP2RAGE.nii*" | head -n 1`
  if [ ! -n "$t1inv2" ]; then echo "t1inv2 missing, skipping correction for $t1uni"; continue; fi
 
  echo b1uni: $b1uni
@@ -358,36 +361,39 @@ b1uni_file=${b1uni##*/}
 b1uni_reg=$work_dir/${b1uni_file%%.nii.gz}_space-T1w.nii.gz
 if [ ! -e $b1uni_reg ]
 then
-echo flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1uni -out $b1uni_reg 
-flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1uni -out $b1uni_reg 
+echo flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1uni -out $b1uni_reg -interp nearestneighbour
+flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1uni -out $b1uni_reg -interp nearestneighbour
 fi
 
 b1map_file=${b1map##*/}
 b1map_reg=$work_dir/${b1map_file%%.nii.gz}_space-T1w.nii.gz
 if [ ! -e $b1map_reg ]
 then
-echo flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1map -out $b1map_reg 
-flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1map -out $b1map_reg 
+echo flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1map -out $b1map_reg -interp nearestneighbour
+flirt -datatype float -applyxfm -init $b1_to_t1 -ref $t1inv2 -in $b1map -out $b1map_reg -interp nearestneighbour
 fi
 
 
 
 t1map_corr=$work_dir/${beforeacq}_acq-MP2RAGE_${afteracq}_proc-SA2RAGE_T1map.nii
+b1map_corr=$work_dir/${beforeacq}_acq-MP2RAGE_${afteracq}_proc-SA2RAGE_B1map.nii
 t1uni_file=${t1uni##*/}
 t1uni_corr=$work_dir/${t1uni_file%%_MP2RAGE.nii.gz}_proc-SA2RAGE_MP2RAGE.nii
 
 if [ ! -e $t1map_corr ]
 then
-echo run_mp2rage_correction.sh $b1uni_reg $b1map_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr 
-#run_mp2rage_correction.sh $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr 
+echo run_mp2rage_correction.sh $b1uni_reg $b1map_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr 
+echo "mp2rage_correction('$b1uni_reg','$b1map_reg','$t1uni_f','$b1_params','$t1_params','$t1uni_corr','$t1map_corr','$b1map_corr')"
+run_mp2rage_correction.sh $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr
 fi
 
-gzip $t1map_corr $t1uni_corr
+gzip $t1map_corr $t1uni_corr $b1map_corr
 
 #copy to bids folder:
-out_deriv=$derivatives/$subj_sess_dir/anat
-mkdir -p $out_deriv
-cp -v ${t1map_corr}.gz ${t1uni_corr}.gz $out_deriv
+out_deriv=$derivatives/$subj_sess_dir
+mkdir -p $out_deriv/anat $out_deriv/fmap
+cp -v ${t1map_corr}.gz ${t1uni_corr}.gz $out_deriv/anat
+cp -v ${b1map_corr}.gz  $out_deriv/fmap
 
 done # loop through t1map inputs
 

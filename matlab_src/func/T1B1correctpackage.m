@@ -126,16 +126,22 @@ else
 end;
 if isempty(Sa2RAGEimg)
     B1img.img=double(B1img.img)/1000;
+    %sa2rage_deriv=reshape(interp1(Sa2RAGE.B1vector,Sa2RAGE.Intensity,B1img.img(:)),size(B1img.img));
     Sa2RAGEimg.img=reshape(interp1(Sa2RAGE.B1vector,Sa2RAGE.Intensity,B1img.img(:)),size(B1img.img));
 else
-    %want Sa2RAGE intensities to be mapped from min(Sa2RAGE.Intensity) to max(Sa2RAGE.Intensity)   
-    Sa2RAGEscaled=double(Sa2RAGEimg.img)/ max(Sa2RAGEimg.img(:)) * (max(Sa2RAGE.Intensity) - min(Sa2RAGE.Intensity)) + min(Sa2RAGE.Intensity);
+    %want Sa2RAGE intensities to be mapped from min to max B1   
+  %  sa2rage_acq=double(Sa2RAGEimg.img);
+  %  Sa2RAGEscaled=double(Sa2RAGEimg.img)/4095 - 0.5;
+    %Sa2RAGEscaled=double(Sa2RAGEimg.img)/ (Sa2RAGE.Intensity(1) - Sa2RAGE.Intensity(end)) * (max(Sa2RAGE.Intensity) - min(Sa2RAGE.Intensity)) + min(Sa2RAGE.Intensity);
     
-    B1estimated=reshape(interp1(Sa2RAGE.Intensity,Sa2RAGE.B1vector, Sa2RAGEscaled(:)),size(Sa2RAGEscaled));
+   % B1estimated=reshape(interp1(Sa2RAGE.Intensity,Sa2RAGE.B1vector, Sa2RAGEscaled(:)),size(Sa2RAGEscaled));
 
-    %Sa2RAGEimg.img=double(Sa2RAGEimg.img)/4095 - 0.5;
+   %not exactly sure where factor of ~3.95 comes in, but that is what is needed
+   %to make the loaded Sa2RAGE similar to the Sa2RAGE derived from B1map
+   
+    Sa2RAGEimg.img=3.95*(double(Sa2RAGEimg.img)/4095 - 0.5);
     %Sa2RAGEimg.img=double(Sa2RAGEimg.img)/4095 -1 ;
-end;
+end
 
 %% now the fun starts
 % creates a lookup table of MP2RAGE intensities as a function of B1 and T1
