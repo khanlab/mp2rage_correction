@@ -1,4 +1,4 @@
-function [] = mp2rage_correction(inv1,inv2,Sa2RAGE_filename,Sa2RAGE_B1_filename,MP2RAGE_filename,B1_para_filename,MP2RAGE_para_filename,MP2RAGE_corrected_output_filename,T1_corrected_output_filename,B1_corrected_output_filename,uni_den)
+function [] = mp2rage_correction(inv1,inv2,Sa2RAGE_filename,MP2RAGE_filename,B1_para_filename,MP2RAGE_para_filename,MP2RAGE_corrected_output_filename,T1_corrected_output_filename,B1_corrected_output_filename,uni_den,varargin)
 
 % Scripts to remove residual B1 bias from T1 maps calculated with the
 % MP2RAGE sequence
@@ -9,17 +9,22 @@ function [] = mp2rage_correction(inv1,inv2,Sa2RAGE_filename,Sa2RAGE_B1_filename,
 % space of the MP2RAGE image and that they now have the B1 has in the
 % process been interpolated to the same resolution.
 % 
-% test:
-% mp2rage_correction('sa2rage_UNI_Images.nii.gz','mp2rage_sag_700iso_p3_944_UNI_Images.nii.gz','sa2rage_parameters.csv','mp2rage_parameters.csv','MP2rage_corrected.nii','T1_corrected.nii') 
 %
  
-if nargin < 6
-    disp('usage: <SA2RAGE_UNI_filename(.nii.gz)> <SA2RAGE B1 filename (.nii)> <MP2RAGE_UNI_filename(.nii/.nii.gz)> <B1_para_filename(.csv)> <MP2RAGE_para_filename(.csv)> <MP2RAGE_corrected_output_filename(.nii)> <T1_UNI_corrected_output_filename(.nii)> ');
+if nargin < 10
+    disp('usage: <mp2rage inv1> <mp2rage inv2> <SA2RAGE_UNI_filename(.nii.gz)>  <MP2RAGE_UNI_filename(.nii/.nii.gz)> <B1_para_filename(.csv)> <MP2RAGE_para_filename(.csv)> <MP2RAGE_corrected_output_filename(.nii)> <T1_UNI_corrected_output_filename(.nii)> <OPTIONAL: SA2RAGE B1 filename (.nii)>');
     return
 end
-    
+   
+if nargin > 10
+	Sa2RAGE_B1_filename=varargin
+else
+	Sa2RAGE_B1_filename='';
+end
 
+if ~isdeployed
 addpath(genpath('.'))
+end
 
 %disp(B1_para_filename)
 %disp(class(B1_para_filename))

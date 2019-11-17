@@ -1,4 +1,6 @@
 #!/bin/bash
+execpath=`dirname $0`
+execpath=`realpath $execpath`
 
 function die {
  echo $1 >&2
@@ -351,8 +353,11 @@ fi
 
 #convert to float for precision
 t1uni_f=$work_dir/${t1uni##*/}
+if [ ! -e $t1uni_f ]
+then
 echo fslmaths $t1uni $t1uni_f -odt float 
 fslmaths $t1uni $t1uni_f -odt float 
+fi
 
 #now, register the sa2rage inv2 to the mp2rage inv2
 b1inv2_file=${b1inv2##*/}
@@ -398,9 +403,9 @@ uni_den=$work_dir/${t1uni_file%%_MP2RAGE.nii.gz}_proc-SA2RAGE_T1w.nii
 
 #if [ ! -e $t1map_corr ]
 #then
-echo run_mp2rage_correction.sh $MCRROOT $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den
-echo "mp2rage_correction('$t1inv1','$t1inv2','$b1uni_reg','$b1map_reg','$t1uni_f','$b1_params','$t1_params','$t1uni_corr','$t1map_corr','$b1map_corr','$uni_den')"
-run_mp2rage_correction.sh $MCRROOT $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den
+echo "mp2rage_correction('$t1inv1','$t1inv2','$b1uni_reg','$t1uni_f','$b1_params','$t1_params','$t1uni_corr','$t1map_corr','$b1map_corr','$uni_den','$b1map_reg')"
+echo ${execpath}/mcr/${MCRVERSION}/run_mp2rage_correction.sh $MCRROOT $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den $b1map_reg 
+${execpath}/mcr/${MCRVERSION}/run_mp2rage_correction.sh $MCRROOT $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den $b1map_reg 
 #fi
 
 gzip $t1map_corr $t1uni_corr $b1map_corr $uni_den

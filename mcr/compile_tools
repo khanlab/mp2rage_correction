@@ -14,8 +14,9 @@ filename=${m##*/}
 funcname=${filename%.m}
 
 echo "Compiling $filename ..."
-mcc -N -I $matlab_dir -v -m -d $out_dir $filename 
-echo "Removing extra files: $out_dir/*.{txt,sh,log}"
+mcc -N -a $matlab_dir -v -m -d $out_dir $filename 
+#echo "Removing extra files: $out_dir/*.{txt,sh,log}"
 #rm $out_dir/*.{txt,sh,log}
 
 done
+
