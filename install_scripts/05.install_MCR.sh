@@ -26,8 +26,14 @@ MCR_DIR=$INSTALL/mcr/$VERSION
 mkdir -p $MCR_DIR $TMP_DIR
 MCR_DIR=`realpath $MCR_DIR`
 
+if [ "$VERSION" = "v96" ]
+then
+	URL=https://ssd.mathworks.com/supportfiles/downloads/R2019a/Release/6/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2019a_Update_6_glnxa64.zip
+else
+	URL=http://ssd.mathworks.com/supportfiles/downloads/${RELEASE}/deployment_files/${RELEASE}/installers/glnxa64/MCR_${RELEASE}_glnxa64_installer.zip
+fi
 
-curl -L --retry 5 http://ssd.mathworks.com/supportfiles/downloads/${RELEASE}/deployment_files/${RELEASE}/installers/glnxa64/MCR_${RELEASE}_glnxa64_installer.zip > $TMP_DIR/install.zip
+curl -L --retry 5 $URL > $TMP_DIR/install.zip
 pushd $TMP_DIR
 unzip install.zip
 ./install -mode silent -agreeToLicense yes -destinationFolder $MCR_DIR

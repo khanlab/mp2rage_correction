@@ -398,9 +398,9 @@ uni_den=$work_dir/${t1uni_file%%_MP2RAGE.nii.gz}_proc-SA2RAGE_T1w.nii
 
 #if [ ! -e $t1map_corr ]
 #then
-echo run_mp2rage_correction.sh $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den
+echo run_mp2rage_correction.sh $MCRROOT $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den
 echo "mp2rage_correction('$t1inv1','$t1inv2','$b1uni_reg','$b1map_reg','$t1uni_f','$b1_params','$t1_params','$t1uni_corr','$t1map_corr','$b1map_corr','$uni_den')"
-run_mp2rage_correction.sh $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den
+run_mp2rage_correction.sh $MCRROOT $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den
 #fi
 
 gzip $t1map_corr $t1uni_corr $b1map_corr $uni_den
