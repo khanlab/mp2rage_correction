@@ -413,7 +413,7 @@ gzip $t1map_corr $t1uni_corr $b1map_corr $uni_den
 #copy to bids folder:
 out_deriv=$derivatives/$subj_sess_dir
 mkdir -p $out_deriv/anat $out_deriv/fmap
-cp -v ${t1map_corr}.gz ${t1uni_corr}.gz ${uni_den} $out_deriv/anat
+cp -v ${t1map_corr}.gz ${t1uni_corr}.gz ${uni_den}.gz $out_deriv/anat
 cp -v ${b1map_corr}.gz  $out_deriv/fmap
 
 done # loop through t1map inputs

@@ -17,7 +17,7 @@ if nargin < 10
 end
    
 if nargin > 10
-	Sa2RAGE_B1_filename=varargin
+	Sa2RAGE_B1_filename=varargin{1}
 else
 	Sa2RAGE_B1_filename='';
 end
