@@ -64,16 +64,16 @@ if isempty(brain)
 end;
 %% sanity check to see how B1 sensitive your sequence was
 
-%gcf=figure(3);
-%set(gcf,'Color',[1 1 1]);
-%hold off
+% gcf=figure(3);
+% set(gcf,'Color',[1 1 1]);
+% hold off
 
 for B1=0.6:0.2:1.4
     [MP2RAGEamp T1vector IntensityBeforeComb]=MP2RAGE_lookuptable(2,MP2RAGE.TR,MP2RAGE.TIs,B1*MP2RAGE.FlipDegrees,MP2RAGE.NZslices,MP2RAGE.TRFLASH,'normal');
-    %plot(MP2RAGEamp,T1vector,'color',[0.5 0.5 0.5]*B1,'Linewidth',2)
-    %hold on
+%     plot(MP2RAGEamp,T1vector,'color',[0.5 0.5 0.5]*B1,'Linewidth',2)
+%     hold on
 end
-%legend('B1=0.6','B1=0.8','B1=1','B1=1.2','B1=1.4','B1=1.6')
+% legend('B1=0.6','B1=0.8','B1=1','B1=1.2','B1=1.4','B1=1.6')
 
 % examples of T1 values at 3T
 if ~isfield(MP2RAGE,'B0')
@@ -93,13 +93,13 @@ else
     end;
 end;
 
-% plot([-0.5 0.5],[T1CSF T1CSF;T1GM T1GM;T1WM T1WM]','Linewidth',2)
-% text(0.35,T1WM,'White Matter')
-% text(0.35,T1GM,'Grey Matter')
-% text(0.35,T1CSF,'CSF')
-% 
-% ylabel('T1');
-% xlabel('MP2RAGE');
+%  plot([-0.5 0.5],[T1CSF T1CSF;T1GM T1GM;T1WM T1WM]','Linewidth',2)
+%  text(0.35,T1WM,'White Matter')
+%  text(0.35,T1GM,'Grey Matter')
+%  text(0.35,T1CSF,'CSF')
+% % 
+%  ylabel('T1');
+%  xlabel('MP2RAGE');
 
 %% definition of range of B1s and T1s and creation of MP2RAGE and Sa2RAGE lookupvector to make sure the input data for the rest of the code is the Sa2RAGEimg and the MP2RAGEimg
 
@@ -124,12 +124,16 @@ if isempty(MP2RAGEimg)
 else
     MP2RAGEimg.img=double(MP2RAGEimg.img)/4095-0.5;
 end;
-if isempty(Sa2RAGEimg)
+if isempty(B1img)
+    %use b1div (UNI) image from sa2rage if b1map not provided
+    Sa2RAGEimg.img=double(Sa2RAGEimg.img)/4095 - 0.5;
+
+else
+    %otherwise just use b1map
     B1img.img=double(B1img.img)/1000;
     Sa2RAGEimg.img=reshape(interp1(Sa2RAGE.B1vector,Sa2RAGE.Intensity,B1img.img(:)),size(B1img.img));
-else
-    Sa2RAGEimg.img=double(Sa2RAGEimg.img)/4095-1;
-end;
+
+end
 
 %% now the fun starts
 % creates a lookup table of MP2RAGE intensities as a function of B1 and T1
@@ -228,25 +232,25 @@ T1temp.img=(T1temp.img)*1000;
 B1temp.img=(B1temp.img)*1000;
 
 %%
-showimages=0;
-if showimages==1;
-    subplot(121)
-    imagesc(MP2RAGE_vector,B1_vector,T1matrix,[0.4 5]);colorbar;
-    xlabel ('MP2RAGE','FontSize',12,'FontWeight','bold')
-    ylabel ('B_1','FontSize',12,'FontWeight','bold')
-    title('T_1 look-up table','FontSize',12,'FontWeight','bold')
-    subplot(122)
-    imagesc(Sa2RAGE_vector,T1_vector,B1matrix);colorbar;
-    axis tight
-    xlabel ('Sa2RAGE','FontSize',12,'FontWeight','bold')
-    ylabel ('T_1 (s)','FontSize',12,'FontWeight','bold')
-    title('B_1 look-up table','FontSize',12,'FontWeight','bold')
-    % get(H)
-    H=gca
-    set(H,'FontSize',12,'LineWidth',2)
-    axes(H)
-    
-end;
+% showimages=1;
+% if showimages==1;
+%     subplot(121)
+%     imagesc(MP2RAGE_vector,B1_vector,T1matrix,[0.4 5]);colorbar;
+%     xlabel ('MP2RAGE','FontSize',12,'FontWeight','bold')
+%     ylabel ('B_1','FontSize',12,'FontWeight','bold')
+%     title('T_1 look-up table','FontSize',12,'FontWeight','bold')
+%     subplot(122)
+%     imagesc(Sa2RAGE_vector,T1_vector,B1matrix);colorbar;
+%     axis tight
+%     xlabel ('Sa2RAGE','FontSize',12,'FontWeight','bold')
+%     ylabel ('T_1 (s)','FontSize',12,'FontWeight','bold')
+%     title('B_1 look-up table','FontSize',12,'FontWeight','bold')
+%     % get(H)
+%     H=gca
+%     set(H,'FontSize',12,'LineWidth',2)
+%     axes(H)
+%     
+% end;
 
 end
 

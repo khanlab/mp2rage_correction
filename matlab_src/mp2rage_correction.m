@@ -1,25 +1,30 @@
-function [] = mp2rage_correction(B1_filename,MP2RAGE_filename,B1_para_filename,MP2RAGE_para_filename,MP2RAGE_corrected_output_filename,T1_corrected_output_filename)
+function [] = mp2rage_correction(inv1,inv2,Sa2RAGE_filename,MP2RAGE_filename,B1_para_filename,MP2RAGE_para_filename,MP2RAGE_corrected_output_filename,T1_corrected_output_filename,B1_corrected_output_filename,uni_den,varargin)
 
 % Scripts to remove residual B1 bias from T1 maps calculated with the
 % MP2RAGE sequence
 % Correction of T1 estimations as sugested on:
 % Marques, J.P., Gruetter, R., 2013. New Developments and Applications of the MP2RAGE Sequence - Focusing the Contrast and High Spatial Resolution R1 Mapping. PLoS ONE 8. doi:10.1371/journal.pone.0069294
 %
-% in this script it is assumed that the B1 maps have been coregistered to the
+% in this script it is assumed that the Sa2RAGE UNI image has been coregistered to the
 % space of the MP2RAGE image and that they now have the B1 has in the
 % process been interpolated to the same resolution.
 % 
-% test:
-% mp2rage_correction('sa2rage_B1map_reg.nii.gz','mp2rage_sag_700iso_p3_944_UNI_Images.nii.gz','sa2rage_parameters.csv','mp2rage_parameters.csv','MP2rage_corrected.nii','T1_corrected.nii') 
 %
  
-if nargin < 6
-    disp('usage: <B1_filename(.nii.gz)> <MP2RAGE_filename(.nii/.nii.gz)> <B1_para_filename(.csv)> <MP2RAGE_para_filename(.csv)> <MP2RAGE_corrected_output_filename(.nii)> <T1_corrected_output_filename(.nii)>');
+if nargin < 10
+    disp('usage: <mp2rage inv1> <mp2rage inv2> <SA2RAGE_UNI_filename(.nii.gz)>  <MP2RAGE_UNI_filename(.nii/.nii.gz)> <B1_para_filename(.csv)> <MP2RAGE_para_filename(.csv)> <MP2RAGE_corrected_output_filename(.nii)> <T1_UNI_corrected_output_filename(.nii)> <OPTIONAL: SA2RAGE B1 filename (.nii)>');
     return
 end
-    
+   
+if nargin > 10
+	Sa2RAGE_B1_filename=varargin{1}
+else
+	Sa2RAGE_B1_filename='';
+end
 
+if ~isdeployed
 addpath(genpath('.'))
+end
 
 %disp(B1_para_filename)
 %disp(class(B1_para_filename))
@@ -31,10 +36,15 @@ Sa2RAGE.TIs=str2num( sa2rage_p.Var2{find(strcmp(sa2rage_p.Var1,'TIs'))} );
 Sa2RAGE.NZslices=str2num( sa2rage_p.Var2{find(strcmp(sa2rage_p.Var1,'NZslices'))} );
 Sa2RAGE.FlipDegrees=str2num( sa2rage_p.Var2{find(strcmp(sa2rage_p.Var1,'FlipDegrees'))} );
 Sa2RAGE.averageT1=str2num( sa2rage_p.Var2{find(strcmp(sa2rage_p.Var1,'averageT1'))} );
-Sa2RAGE.B1filename=B1_filename;
+Sa2RAGE.filename=Sa2RAGE_filename;
 
 %load B1 image
-B1=load_untouch_nii(Sa2RAGE.B1filename);
+if ~isempty(Sa2RAGE_B1_filename)
+    B1=load_untouch_nii(Sa2RAGE_B1_filename);
+else
+    B1=[];
+end
+Sa2RAGEimg=load_untouch_nii(Sa2RAGE.filename);
 
 mp2rage_p = readtable(MP2RAGE_para_filename);
 MP2RAGE.B0 = str2num( mp2rage_p.Var2{find(strcmp(mp2rage_p.Var1,'B0'))} );
@@ -46,7 +56,6 @@ MP2RAGE.FlipDegrees=str2num( mp2rage_p.Var2{find(strcmp(mp2rage_p.Var1,'FlipDegr
 MP2RAGE.InvEFF=str2num( mp2rage_p.Var2{find(strcmp(mp2rage_p.Var1,'InvEFF'))} );
 
 MP2RAGE.filename=MP2RAGE_filename;
-
 % additionally the inversion efficiency of the adiabatic inversion can be
 % set as a last optional variable. Ideally it should be 1. 
 % In the first implementation of the MP2RAGE the inversino efficiency was 
@@ -98,29 +107,20 @@ MP2RAGEimg=load_untouch_nii(MP2RAGE.filename);
     
 
 %% performing the correction    
-    [ B1corr T1corrected MP2RAGEcorr] = T1B1correctpackage( [],B1,Sa2RAGE,MP2RAGEimg,[],MP2RAGE,[],MP2RAGE.InvEFF);
+
+    [ B1corr T1corrected MP2RAGEcorr] = T1B1correctpackage( Sa2RAGEimg,B1,Sa2RAGE,MP2RAGEimg,[],MP2RAGE,[],MP2RAGE.InvEFF);
     
-    
+  
+
     %%  saving the data 
     save_untouch_nii(MP2RAGEcorr,MP2RAGE_corrected_output_filename) 
     save_untouch_nii(T1corrected,T1_corrected_output_filename)
+    save_untouch_nii(B1corr,B1_corrected_output_filename)
     
-%     %%
-%     % saving the data
-%     save_untouch_nii(MP2RAGEcorr,'data/MP2RAGEcorr.nii') 
-%     save_untouch_nii(T1corrected,'data/T1corrected.nii')
-%     
+    %% also need to generate and save the UNI-DEN image 
+    multiplyingFactor=6;
 
+    [MP2RAGEimgRobustPhaseSensitive]=RobustCombination(MP2RAGE_corrected_output_filename,inv1,inv2,uni_den,multiplyingFactor);
 
-%     
-% %% if another technique was used to obtain the relative B1 maps 
-% %  (1 means correctly calibrated B1)
-%     B1=load_untouch_nii('data/Sa2RAGE_B1map.nii.gz');
-%     B1.img=double(B1.img)/1000;
-% 
-%     [ T1corrected MP2RAGEcorr] = T1B1correctpackageTFL(B1,MP2RAGEimg,[],MP2RAGE,[],0.96)
-% 
-%     % saving the data
-%     save_untouch_nii(MP2RAGEcorr,'MP2RAGEcorr_normB1.nii') 
-%     save_untouch_nii(T1corrected,'T1corrected_normB1.nii')
+    
     
