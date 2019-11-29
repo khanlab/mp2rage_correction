@@ -211,8 +211,8 @@ fi
 
 
 
-b1inv1=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_*SA2RAGE.nii*" | head -n 1` 
-b1inv2=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_*SA2RAGE.nii*" | head -n 1` 
+b1inv1=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_*SA2RAGE.nii*" "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_part-mag_inv-1_*SA2RAGE.nii*" | head -n 1` 
+b1inv2=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_*SA2RAGE.nii*" "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_part-mag_inv-2_*SA2RAGE.nii*" | head -n 1` 
 b1uni=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-{b1Div,UNI}_*SA2RAGE.nii* | head -n 1` 
 b1map=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-b1map_*SA2RAGE.nii* | head -n 1` 
 if [ ! -e "$b1map" ]
