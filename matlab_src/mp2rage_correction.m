@@ -1,4 +1,4 @@
-function [] = mp2rage_correction(inv1,inv2,Sa2RAGE_filename,MP2RAGE_filename,B1_para_filename,MP2RAGE_para_filename,MP2RAGE_corrected_output_filename,T1_corrected_output_filename,B1_corrected_output_filename,uni_den,varargin)
+function [] = mp2rage_correction(multiplyingFactor,inv1,inv2,Sa2RAGE_filename,MP2RAGE_filename,B1_para_filename,MP2RAGE_para_filename,MP2RAGE_corrected_output_filename,T1_corrected_output_filename,B1_corrected_output_filename,uni_den,varargin)
 
 % Scripts to remove residual B1 bias from T1 maps calculated with the
 % MP2RAGE sequence
@@ -11,12 +11,12 @@ function [] = mp2rage_correction(inv1,inv2,Sa2RAGE_filename,MP2RAGE_filename,B1_
 % 
 %
  
-if nargin < 10
-    disp('usage: <mp2rage inv1> <mp2rage inv2> <SA2RAGE_UNI_filename(.nii.gz)>  <MP2RAGE_UNI_filename(.nii/.nii.gz)> <B1_para_filename(.csv)> <MP2RAGE_para_filename(.csv)> <MP2RAGE_corrected_output_filename(.nii)> <T1_UNI_corrected_output_filename(.nii)> <OPTIONAL: SA2RAGE B1 filename (.nii)>');
+if nargin < 11
+    disp('usage: multfactor <mp2rage inv1> <mp2rage inv2> <SA2RAGE_UNI_filename(.nii.gz)>  <MP2RAGE_UNI_filename(.nii/.nii.gz)> <B1_para_filename(.csv)> <MP2RAGE_para_filename(.csv)> <MP2RAGE_corrected_output_filename(.nii)> <T1_UNI_corrected_output_filename(.nii)> <OPTIONAL: SA2RAGE B1 filename (.nii)>');
     return
 end
    
-if nargin > 10
+if nargin > 11
 	Sa2RAGE_B1_filename=varargin{1}
 else
 	Sa2RAGE_B1_filename='';
@@ -118,7 +118,6 @@ MP2RAGEimg=load_untouch_nii(MP2RAGE.filename);
     save_untouch_nii(B1corr,B1_corrected_output_filename)
     
     %% also need to generate and save the UNI-DEN image 
-    multiplyingFactor=6;
 
     [MP2RAGEimgRobustPhaseSensitive]=RobustCombination(MP2RAGE_corrected_output_filename,inv1,inv2,uni_den,multiplyingFactor);
 
