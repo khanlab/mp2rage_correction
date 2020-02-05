@@ -17,7 +17,6 @@ then
  echo "          [--sa2rage_echo_spacing T_SEC (default: 2.2e-3) Found in ProtocolPDF -> Sa2RAGE -> Sequence -> Echo Spacing ]"
  echo "          [--mp2rage_param_csv FILE_PATH ]"
  echo "          [--sa2rage_param_csv FILE_PATH ]"
- echo "          [--denoise_factor DENOISE_FAC (default: 6 -- increase this to 10 or more if there is noise in the background still)]"
  echo ""
  exit 1
 fi
@@ -38,7 +37,6 @@ sa2rage_echo_spacing=2.2e-3
 mp2rage_param_csv=
 sa2rage_param_csv=
 
-denoise_factor=6
 
 while :; do
       case $1 in
@@ -60,23 +58,6 @@ while :; do
           --participant_label=)         # handle the case of an empty --participant=
          die 'error: "--participant_label" requires a non-empty option argument.'
           ;;
-
-    --denoise_factor )       # takes an option argument; ensure it has been specified.
-          if [ "$2" ]; then
-                denoise_factor=$2
-                  shift
-	      else
-              die 'error: "--denoise_factor" requires a non-empty option argument.'
-            fi
-              ;;
-     --mp2rage_echo_spacing=?*)
-          mp2rage_echo_spacing=${1#*=} # delete everything up to "=" and assign the remainder.
-            ;;
-          --mp2rage_echo_spacing=)         # handle the case of an empty --participant=
-         die 'error: "--mp2rage_echo_spacing" requires a non-empty option argument.'
-          ;;
-
-
 
        --mp2rage_echo_spacing )       # takes an option argument; ensure it has been specified.
           if [ "$2" ]; then
@@ -422,9 +403,9 @@ uni_den=$work_dir/${t1uni_file%%_MP2RAGE.nii.gz}_proc-SA2RAGE_T1w.nii
 
 #if [ ! -e $t1map_corr ]
 #then
-echo "mp2rage_correction($denoise_factor,'$t1inv1','$t1inv2','$b1uni_reg','$t1uni_f','$b1_params','$t1_params','$t1uni_corr','$t1map_corr','$b1map_corr','$uni_den','$b1map_reg')"
-echo ${execpath}/mcr/${MCRVERSION}/run_mp2rage_correction.sh $MCRROOT $denoise_factor $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den $b1map_reg 
-${execpath}/mcr/${MCRVERSION}/run_mp2rage_correction.sh $MCRROOT $denoise_factor $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den $b1map_reg 
+echo "mp2rage_correction('$t1inv1','$t1inv2','$b1uni_reg','$t1uni_f','$b1_params','$t1_params','$t1uni_corr','$t1map_corr','$b1map_corr','$uni_den','$b1map_reg')"
+echo ${execpath}/mcr/${MCRVERSION}/run_mp2rage_correction.sh $MCRROOT $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den $b1map_reg 
+${execpath}/mcr/${MCRVERSION}/run_mp2rage_correction.sh $MCRROOT $t1inv1 $t1inv2 $b1uni_reg $t1uni_f $b1_params $t1_params $t1uni_corr $t1map_corr $b1map_corr $uni_den $b1map_reg 
 #fi
 
 gzip $t1map_corr $t1uni_corr $b1map_corr $uni_den
