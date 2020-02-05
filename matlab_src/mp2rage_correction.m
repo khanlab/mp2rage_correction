@@ -111,6 +111,9 @@ MP2RAGEimg=load_untouch_nii(MP2RAGE.filename);
     [ B1corr T1corrected MP2RAGEcorr] = T1B1correctpackage( Sa2RAGEimg,B1,Sa2RAGE,MP2RAGEimg,[],MP2RAGE,[],MP2RAGE.InvEFF);
     
   
+    %% replace zeros in MP2RAGEcorr
+    recover_mask = (MP2RAGEcorr.img==0);
+    MP2RAGEcorr.img(recover_mask) = MP2RAGEimg.img(recover_mask);
 
     %%  saving the data 
     save_untouch_nii(MP2RAGEcorr,MP2RAGE_corrected_output_filename) 
