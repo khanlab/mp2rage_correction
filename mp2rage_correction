@@ -211,8 +211,8 @@ fi
 
 
 
-b1inv1=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_*SA2RAGE.nii*" "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_part-mag_inv-1_*SA2RAGE.nii*" | head -n 1` 
-b1inv2=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_*SA2RAGE.nii*" "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_part-mag_inv-2_*SA2RAGE.nii*" | head -n 1` 
+b1inv1=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_*SA2RAGE.nii*" "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-1_part-mag_*SA2RAGE.nii*" | head -n 1` 
+b1inv2=`eval ls "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_*SA2RAGE.nii*" "$in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_inv-2_part-mag_*SA2RAGE.nii*" | head -n 1` 
 b1uni=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-{b1Div,UNI}_*SA2RAGE.nii* | head -n 1` 
 b1map=`eval ls $in_bids/${subj_sess_dir}/fmap/${subj_sess_prefix}_acq-b1map_*SA2RAGE.nii* | head -n 1` 
 if [ ! -e "$b1map" ]
@@ -241,21 +241,21 @@ fi
 # iterate over runs and echos, by finding *_acq-UNI_*MP2RAGE images
 
 
-for t1uni in $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}*acq-UNI_*MP2RAGE.nii* 
+for t1uni in $in_bids/${subj_sess_dir}/anat/${subj_sess_prefix}*acq-MP2RAGE_*UNIT1.nii* 
 do
 
  echo t1uni: $t1uni
- beforeacq=${t1uni%%_acq-UNI_*}
+ beforeacq=${t1uni%%_acq-MP2RAGE_*}
  beforeacq=${beforeacq##*/}
- afteracq=${t1uni##*acq-UNI_}
- afteracq=${afteracq%%_MP2RAGE.*}
+ afteracq=${t1uni##*acq-MP2RAGE_}
+ afteracq=${afteracq%%_UNIT1.*}
 
  echo beforeacq $beforeacq
  echo afteracq $afteracq
 
- t1inv1=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}_inv-1_${afteracq}*MP2RAGE.nii*" | head -n 1`
+ t1inv1=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}_inv-1_part-mag_${afteracq}*MP2RAGE.nii*" | head -n 1`
  if [ ! -n "$t1inv1" ]; then echo "t1inv1 missing, skipping correction for $t1uni"; continue; fi
- t1inv2=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}_inv-2_${afteracq}*MP2RAGE.nii*" | head -n 1`
+ t1inv2=`eval ls "$in_bids/${subj_sess_dir}/anat/${beforeacq}_inv-2_part-mag_${afteracq}*MP2RAGE.nii*" | head -n 1`
  if [ ! -n "$t1inv2" ]; then echo "t1inv2 missing, skipping correction for $t1uni"; continue; fi
 
  echo b1uni: $b1uni
@@ -263,6 +263,7 @@ do
  echo b1inv1: $b1inv1
  echo b1inv2: $b1inv2
  echo t1uni: $t1uni
+
  echo t1inv1: $t1inv1
  echo t1inv2: $t1inv2
 
@@ -398,8 +399,8 @@ fi
 t1map_corr=$work_dir/${beforeacq}_acq-MP2RAGE_${afteracq}_proc-SA2RAGE_T1map.nii
 b1map_corr=$work_dir/${beforeacq}_acq-MP2RAGE_${afteracq}_proc-SA2RAGE_B1map.nii
 t1uni_file=${t1uni##*/}
-t1uni_corr=$work_dir/${t1uni_file%%_MP2RAGE.nii.gz}_proc-SA2RAGE_MP2RAGE.nii
-uni_den=$work_dir/${t1uni_file%%_MP2RAGE.nii.gz}_proc-SA2RAGE_T1w.nii
+t1uni_corr=$work_dir/${t1uni_file%%_UNIT1.nii.gz}_proc-SA2RAGE_MP2RAGE.nii
+uni_den=$work_dir/${t1uni_file%%_UNIT1.nii.gz}_proc-SA2RAGE_T1w.nii
 
 #if [ ! -e $t1map_corr ]
 #then
